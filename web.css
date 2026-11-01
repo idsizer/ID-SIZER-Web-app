@@ -1,0 +1,702 @@
+/* =====================================================================
+   SIZER web edition — responsive layer
+   ---------------------------------------------------------------------
+   Loaded after the app's built-in styles. Nothing here changes the
+   desktop layout; it adds phone/tablet navigation, touch-friendly
+   sizing, PWA chrome and safe-area handling.
+   ===================================================================== */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The app header is sticky. The announcement / update bars sit after it
+   in the document and would otherwise stick on top of the header. Let them
+   scroll away so the header always stays readable. */
+#topBars {
+  position: relative !important;
+  top: auto !important;
+  z-index: 39 !important;
+}
+
+/* ------------------------------------------------------------------
+   Small web-only pieces
+   ------------------------------------------------------------------ */
+.web-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 999px;
+  vertical-align: 2px;
+}
+
+#webInstallBtn {
+  min-width: 36px;
+}
+
+.web-only-note {
+  margin-top: 10px !important;
+  padding-top: 9px;
+  border-top: 1px dashed var(--line);
+  font-size: 11.5px !important;
+  opacity: .8;
+}
+
+.web-no-server {
+  display: none;
+  padding: 10px 18px;
+  background: #fff8e6;
+  color: #6b4500;
+  border-bottom: 1px solid #f0e0b0;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* shown only while the app is opened straight from disk */
+body.web-file-mode .web-no-server {
+  display: block;
+}
+
+/* ------------------------------------------------------------------
+   Mobile step bar
+   ------------------------------------------------------------------ */
+.web-stepbar {
+  display: none;
+}
+
+.web-stepbar button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 56px;
+  padding: 7px 4px 6px;
+  margin: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font: 600 11px/1.15 inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.web-stepbar button svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.web-stepbar button .web-stepnum {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(9px);
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 15px;
+  text-align: center;
+}
+
+.web-stepbar button.active {
+  color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.web-stepbar button.active .web-stepnum {
+  color: #fff;
+  background: var(--accent);
+}
+
+.web-stepbar .web-step-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* install tip sheet (iOS and other browsers without beforeinstallprompt) */
+.web-tip {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(16, 24, 40, .55);
+  backdrop-filter: blur(2px);
+}
+
+.web-tip.show {
+  display: flex;
+}
+
+.web-tip-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 22px 20px 16px;
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
+  text-align: left;
+}
+
+.web-tip-card h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.web-tip-card p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.web-tip-card ol {
+  margin: 0 0 14px;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.web-tip-card .btn-primary {
+  margin-bottom: 0;
+}
+
+/* ------------------------------------------------------------------
+   Phones and small tablets (tabbed, app-like)
+   ------------------------------------------------------------------ */
+@media (max-width: 1039px) {
+  html,
+  body {
+    height: auto !important;
+  }
+
+  body {
+    display: block !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* The 1180px "inner scrolling" desktop mode must never trap a tablet. */
+  .wrap {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    padding: 10px !important;
+    max-width: none;
+  }
+
+  .cols {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    gap: 0 !important;
+  }
+
+  .set-panel,
+  .cols > .panel {
+    display: block;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin-bottom: 12px !important;
+  }
+
+  .panel-body,
+  .set-panel {
+    overflow: visible !important;
+  }
+
+  /* on a phone, one step at a time */
+  body[data-mstep="1"] [data-mpanel="2"],
+  body[data-mstep="1"] [data-mpanel="3"],
+  body[data-mstep="2"] [data-mpanel="1"],
+  body[data-mstep="2"] [data-mpanel="3"],
+  body[data-mstep="3"] [data-mpanel="1"],
+  body[data-mstep="3"] [data-mpanel="2"] {
+    display: none !important;
+  }
+
+  .web-stepbar {
+    display: flex;
+    gap: 4px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 55;
+    padding: 5px 8px calc(5px + env(safe-area-inset-bottom, 0px));
+    background: color-mix(in srgb, var(--card) 92%, transparent);
+    background: var(--card);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -8px 24px rgba(16, 24, 40, .10);
+  }
+
+  /* keep the floating announcement/update buttons above the step bar */
+  #updateMini {
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #announceMini {
+    bottom: calc(126px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* iOS zooms the page when a control smaller than 16px is focused */
+  input[type="text"],
+  input[type="number"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  .form-row {
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .dim-pair input {
+    font-size: 16px !important;
+  }
+
+  /* comfortable touch targets */
+  .btn-primary,
+  .btn-secondary {
+    min-height: 46px;
+  }
+
+  .btn-small {
+    min-height: 40px;
+  }
+
+  .header-icon-btn,
+  .round-icon-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .set-card {
+    padding-top: 13px;
+    padding-bottom: 13px;
+  }
+
+  .set-card input {
+    top: 16px;
+  }
+
+  /* the padlock is absolutely positioned in the top-right corner */
+  .set-card .set-tag {
+    padding-right: 22px;
+  }
+
+  .pol-chip,
+  .attire-tool,
+  .crop-mode {
+    min-height: 38px;
+  }
+
+  #pageCanvas,
+  #attireCanvas {
+    touch-action: none;
+  }
+
+  /* range thumbs are easier to grab */
+  input[type="range"] {
+    height: 28px;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Print / download stay within reach above the step bar, even when the
+     portrait preview is taller than the screen. */
+  .web-print-actions {
+    position: sticky;
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+    z-index: 30;
+    display: flex;
+    gap: 8px;
+    margin: 0 0 10px;
+    padding: 8px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 -8px 24px rgba(16, 24, 40, .12);
+  }
+
+  .web-print-actions .btn-primary,
+  .web-print-actions .btn-secondary {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    min-height: 48px;
+    margin: 0;
+    padding: 10px 8px;
+    font-size: 12.5px;
+  }
+}
+
+/* Tablets use the full page width for step 1, so give the cards an even,
+   readable grid instead of the desktop sidebar's auto-fill columns. */
+@media (min-width: 761px) and (max-width: 1039px) {
+  .set-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 960px) and (max-width: 1039px) {
+  .set-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ------------------------------------------------------------------
+   Phones
+   ------------------------------------------------------------------ */
+@media (max-width: 760px) {
+  header {
+    padding: 0 10px !important;
+  }
+
+  .header-inner {
+    gap: 8px !important;
+    min-height: 0 !important;
+    padding: 7px 0 !important;
+  }
+
+  .logo-badge {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+
+  .logo-badge img {
+    width: 23px;
+    height: 23px;
+  }
+
+  header h1 {
+    font-size: 15px !important;
+    white-space: nowrap;
+  }
+
+  .build-tag {
+    font-size: 9.5px;
+    padding: 1px 6px;
+  }
+
+  .header-title {
+    flex: 1 1 auto !important;
+  }
+
+  .header-tools {
+    gap: 5px !important;
+  }
+
+  .header-select {
+    max-width: 92px;
+  }
+
+  .trial-area {
+    flex: 1 1 100%;
+    gap: 6px !important;
+  }
+
+  .trial-pill {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  /* The full sentence is hidden by the built-in phone CSS. Show a short
+     translated badge instead of leaving only the coloured dot. */
+  .trial-pill::after {
+    content: attr(data-short);
+  }
+
+  .trial-activate-btn {
+    flex: 1 1 auto;
+    min-height: 40px;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  .paid-pill {
+    margin-left: auto;
+  }
+
+  .announce-bar {
+    padding: 8px 10px;
+    font-size: 12px;
+    gap: 7px;
+  }
+
+  .wrap {
+    padding: 8px !important;
+  }
+
+  .panel h2,
+  .set-panel h2 {
+    padding: 12px 13px;
+    font-size: 13.5px;
+  }
+
+  .panel h2::before,
+  .set-panel h2::before {
+    flex-basis: 22px;
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+
+  .panel-body {
+    padding: 12px !important;
+  }
+
+  .group {
+    padding: 11px;
+    margin-bottom: 11px;
+  }
+
+  .form-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+    margin-bottom: 11px;
+  }
+
+  .form-row label {
+    font-size: 12px;
+  }
+
+  .dim-pair input {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
+
+  .custom-form {
+    padding: 11px;
+  }
+
+  .custom-actions {
+    gap: 7px;
+  }
+
+  /* two 165px cards are too narrow for the set names and descriptions */
+  .set-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #dropzone {
+    padding: 28px 14px;
+  }
+
+  .tool-row {
+    gap: 6px;
+  }
+
+  .tool-row .icon-btn {
+    padding: 13px 0;
+  }
+
+  .pol-filter-row {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  .pol-slider {
+    grid-template-columns: 52px minmax(0, 1fr) 34px;
+  }
+
+  .nametag-btn-line {
+    gap: 6px;
+  }
+
+  .nametag-btn {
+    flex: 1 1 40%;
+  }
+
+  #previewWrap {
+    min-height: 180px;
+    padding: 10px !important;
+    margin-bottom: 10px;
+  }
+
+  .print-note {
+    font-size: 11.5px;
+  }
+
+  #printBtn,
+  #downloadBtn {
+    min-height: 48px;
+  }
+
+  /* modals fill the small screen comfortably */
+  .activation-gate {
+    padding: 12px !important;
+    align-items: flex-start !important;
+    overflow-y: auto;
+  }
+
+  .activation-card {
+    padding: 26px 18px 18px !important;
+    margin: 22px 0;
+  }
+
+  .activation-input {
+    font-size: 16px !important;
+  }
+
+  .app-modal-backdrop {
+    padding: 14px;
+  }
+
+  .attire-gate {
+    padding: 8px !important;
+  }
+
+  .attire-modal {
+    max-height: 96dvh !important;
+  }
+
+  .attire-body {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+  }
+
+  .attire-stage {
+    flex: 0 0 auto !important;
+    padding: 10px !important;
+  }
+
+  #attireCanvas {
+    max-height: 42dvh;
+    width: auto !important;
+  }
+
+  .attire-side {
+    flex: 0 0 auto !important;
+    border-left: 0 !important;
+    border-top: 1px solid var(--line);
+    max-height: 42dvh;
+    overflow-y: auto;
+  }
+
+  .attire-foot {
+    flex-wrap: wrap;
+    padding: 10px 12px !important;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .attire-foot .btn-primary,
+  .attire-foot .btn-secondary {
+    flex: 1 1 40%;
+  }
+
+  .web-stepbar button {
+    font-size: 10.5px;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Very small phones
+   ------------------------------------------------------------------ */
+@media (max-width: 400px) {
+  .build-tag {
+    display: none;
+  }
+
+  .web-badge {
+    font-size: 9px;
+  }
+
+  .pol-filter-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .tool-row .icon-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    font-size: 13px;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Touch / pointer refinements
+   ------------------------------------------------------------------ */
+@media (pointer: coarse) {
+  /* the small drag handles on the sheet are hard to see on phones */
+  #pageCanvas {
+    min-height: 120px;
+  }
+
+  .crop-box-outer {
+    touch-action: none;
+  }
+
+  .nametag-chip {
+    cursor: default;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Dark theme fixes for browser-provided surfaces
+   ------------------------------------------------------------------ */
+html[data-theme="dark"] .web-stepbar {
+  background: var(--card);
+}
+
+html[data-theme="dark"] .web-no-server {
+  background: #2a2410;
+  border-color: #4a4116;
+  color: #e0b357;
+}
+
+/* ------------------------------------------------------------------
+   Print: the web layer must never add padding or chrome
+   ------------------------------------------------------------------ */
+@media print {
+  body {
+    padding-bottom: 0 !important;
+  }
+
+  .web-stepbar,
+  .web-tip,
+  .web-no-server,
+  #webInstallBtn {
+    display: none !important;
+  }
+}
