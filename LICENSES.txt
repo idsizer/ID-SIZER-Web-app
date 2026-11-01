@@ -1,0 +1,14 @@
+Background remover components
+=============================
+
+ONNX Runtime Web (ort.min.js, ort-wasm*.wasm)
+  Copyright (c) Microsoft Corporation
+  MIT License - https://github.com/microsoft/onnxruntime
+
+segment.onnx  (ISNet / DIS segmentation model, medium variant)
+  Xuebin Qin et al., "Highly Accurate Dichotomous Image Segmentation"
+  MIT License - https://github.com/xuebinqin/DIS
+
+Both are MIT licensed, so this feature can be used and redistributed
+commercially at no cost. Nothing is sent over the internet - the model
+runs entirely on this computer.

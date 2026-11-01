@@ -1,0 +1,8 @@
+# Netlify / Cloudflare Pages header rules for the SIZER web edition.
+
+/*
+  X-Content-Type-Options: nosniff
+
+/ml/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=31536000, immutable
