@@ -3289,6 +3289,10 @@ let currentSetId = 'set1';    // which SET slot is being edited (overwritten on 
 let arrangeMode = false;
 let arranged = null;       // array of {x,y,w,h,shape,tagged} in inches, or null
 let selection = new Set(); // indexes into `arranged`
+// The red dashed marquee is an on-screen editing aid. These flags let a
+// print/download compose the sheet without it, then restore the preview.
+let idplHideSelection = false;
+let idplExporting = false;
 let clipboard = [];
 let dragState = null;
 let nudgeHistoryTimer = null; // groups a burst of arrow-key nudges into one undo step
@@ -6872,7 +6876,7 @@ function drawPlacedPhoto(p, index){
 }
 
 function drawSelection(){
-  if(!arrangeMode) return;
+  if(!arrangeMode || idplHideSelection) return;
   ctx.save();
   ctx.strokeStyle = '#c8202b';
   ctx.lineWidth = 3;
@@ -7348,7 +7352,7 @@ function idplCanOutput(){
 
 // Produce the PNG that leaves the app. Trial output goes through a marked
 // copy so the preview itself is never permanently stamped.
-function idplSheetDataURL(withMark){
+function idplComposeSheetDataURL(withMark){
   if(!withMark) return pageCanvas.toDataURL('image/png');
   const oc = document.createElement('canvas');
   oc.width = pageCanvas.width; oc.height = pageCanvas.height;
@@ -7358,10 +7362,30 @@ function idplSheetDataURL(withMark){
   return oc.toDataURL('image/png');
 }
 
+function idplSheetDataURL(withMark){
+  // In arrange mode the selected photos carry a dashed red border. It is an
+  // editing aid, so redraw the sheet without it before grabbing the bitmap,
+  // then put the preview back exactly as the user sees it. The redraw is
+  // synchronous, so the user never sees the intermediate frame.
+  if(arrangeMode && selection.size){
+    idplExporting = true;
+    idplHideSelection = true;
+    try{
+      renderPage();
+      return idplComposeSheetDataURL(withMark);
+    }finally{
+      idplHideSelection = false;
+      try{ renderPage(); }finally{ idplExporting = false; }
+    }
+  }
+  return idplComposeSheetDataURL(withMark);
+}
+
 // Refresh the print-only bitmap in the background, after the UI has settled.
 // Browser-menu printing (Ctrl/Cmd+P) uses this copy, because Chromium cannot
 // print a live <canvas>.
 function idplWarmPrintImage(){
+  if(idplExporting) return; // an export is already composing a clean copy
   clearTimeout(printImageTimer);
   printImageTimer = setTimeout(function(){
     try{
