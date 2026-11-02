@@ -7,6 +7,16 @@ gestures, PWA installation and a browser-based file/print bridge.
 The original Electron app is untouched. Everything needed to host the website
 is inside this folder.
 
+## Live site
+
+- **Web app:** <https://id-sizer-web-app.vercel.app/>
+- **Activation API:** <https://idpl-activation.jasonirishilot99.workers.dev>
+- **Repository:** <https://github.com/idsizer/ID-SIZER-Web-app>
+
+The Vercel project is connected to the repository's `main` branch, so a push
+deploys the site automatically. The activation Worker now enforces the same
+1000-code `VALID_HASHES` allowlist as the browser.
+
 ---
 
 ## What is in this folder
