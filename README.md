@@ -30,6 +30,7 @@ deploys the site automatically. The activation Worker now enforces the same
 | `idpl-config.js` | Site configuration (activation server, model location, version) |
 | `manifest.webmanifest` | PWA name, icons, shortcuts and install behaviour |
 | `sw.js` | Service worker that keeps the app shell available offline |
+| `vercel.json` | Vercel headers: long-lived cache for `ml/` and `icons/` |
 | `ml/` | ONNX background-removal model + onnxruntime-web runtime (~115 MB) |
 | `icons/` | PWA / home-screen icons |
 | `serve.py`, `serve.js` | Local preview servers with the correct MIME types |
