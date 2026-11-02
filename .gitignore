@@ -1,0 +1,9 @@
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc
+
+# Never commit the plaintext activation codes or the hash export.
+activation-codes.txt
+activation-codes.csv
+valid-code-hashes.json

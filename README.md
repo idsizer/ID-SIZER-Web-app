@@ -98,6 +98,22 @@ Upload the **contents of this folder** to any static host. The site needs:
 3. Netlify accepts the 88 MB model file. The included `_headers` file gives the
    model long-lived caching and open CORS.
 
+### Vercel
+
+1. Push this folder to GitHub first (see the GitHub Pages instructions below).
+2. In Vercel choose **Add New → Project** and import the repository.
+3. Set **Framework Preset** to **Other**. Leave the build command and output
+   directory empty.
+4. If the repository has a `website/` folder at its root, set **Root Directory**
+   to `website`. If `index.html` is at the repository root, leave it as `./`.
+5. Deploy. Vercel provides HTTPS, so the PWA and background removal work.
+
+Vercel's Hobby plan is for non-commercial use and lists a 100 MB limit for CLI
+static-file uploads, while this site is about 115 MB. Git imports usually work,
+but if Vercel rejects the deployment, either move `ml/` to a CDN (see below),
+use Vercel Pro (1 GB source limit), or host on GitHub Pages instead. Vercel
+ignores the included `_headers` file; that does not affect the app.
+
 ### GitHub Pages
 
 GitHub Pages is enough for the whole app. It is static hosting; photo editing,
@@ -229,8 +245,26 @@ Activation is stored in this browser's `localStorage`, together with a random
 per-browser device ID. Clearing site data creates a new device ID, so the old
 code will not match. This is explained in the activation dialog.
 
-> Do not put activation secrets or a code list in the website files. The app
-> only stores hashes, and the activation server should remain the authority.
+### Issued activation codes
+
+This build accepts only the 1000 lifetime codes in
+`HTTP-XXXX-XXXX-XXXX` format. Their SHA-256 hashes are baked into
+`index.html`, and the same hashes are in the Worker (`worker-live.js` /
+`worker-new.js`, `VALID_HASHES`). A code that is not in that list is rejected
+by the browser before any network request, and the updated Worker rejects it
+again on the server.
+
+- Keep the plaintext list (`activation-codes.txt` / `.csv` in the project
+  root) private. Never upload it to GitHub or the web host.
+- If you replace the codes, update the hash list in **both** `index.html` and
+  the Worker, then bump `CACHE_VERSION` in `sw.js` and redeploy.
+- The Worker only enforces the new list after you paste the updated
+  `worker-live.js` or `worker-new.js` into Cloudflare and deploy it. The
+  browser-side check works immediately with the website update alone.
+
+> Do not put plaintext activation codes or the admin password in the website
+> files. The app stores only one-way SHA-256 hashes; the activation server
+> remains the authority.
 
 ---
 
