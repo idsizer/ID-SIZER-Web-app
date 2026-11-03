@@ -5043,12 +5043,52 @@ async function getSegmenter(){
     ort.env.wasm.proxy = false;
     ort.env.logLevel = 'error';
 
-    // Use every available CPU core when SharedArrayBuffer is present (this
-    // Electron build enables it). Same model, same result — just parallel,
-    // so it's much faster on weak machines. Capped so we don't oversubscribe.
-    const canThread = (typeof SharedArrayBuffer !== 'undefined');
+    // Make sure the AI files actually shipped with this copy of the app. If
+    // they are missing the runtime just reports "no available backend", which
+    // tells the user nothing - so check first and say what is really wrong.
+    async function present(file){
+      try{
+        const h = await fetch(ML_DIR + file, { method:'HEAD' });
+        if(h.ok) return true;
+      }catch(e){}
+      try{ const r = await fetch(ML_DIR + file, { method:'GET' }); return r.ok; }
+      catch(e){ return false; }
+    }
+
+    // Does this CPU support WASM SIMD? Older processors do not, and the
+    // SIMD build of the runtime simply refuses to start on them - which is
+    // what produces "no backend available" on some machines but not others.
+    // Standard SIMD feature-detection module (returns v128).
+    function simdOK(){
+      try{
+        return WebAssembly.validate(new Uint8Array([
+          0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11
+        ]));
+      }catch(e){ return false; }
+    }
+
+    const simd = simdOK();
+    // The threaded runtime is the SIMD one, so threads need SIMD as well.
+    // Without this check an older CPU asks for ort-wasm-threaded.wasm, which
+    // is not shipped, and every later retry inherits the dead backend.
+    const canThread = simd && (typeof SharedArrayBuffer !== 'undefined');
     const cores = (navigator.hardwareConcurrency || 2);
     const threads = canThread ? Math.max(2, Math.min(8, cores)) : 1;
+
+    // Tell the runtime up front what this machine can do, so it loads a
+    // matching .wasm the first time instead of failing and caching a dead
+    // backend that later retries cannot recover from.
+    try{ ort.env.wasm.simd = simd; }catch(e){}
+
+    const needed = simd
+      ? (threads > 1 ? 'ort-wasm-simd-threaded.wasm' : 'ort-wasm-simd.wasm')
+      : 'ort-wasm.wasm';
+    if(!(await present(needed))){
+      throw new Error('The AI file "' + needed + '" is missing from this installation. Reinstall the app to restore it.');
+    }
+    if(!(await present('segment.onnx'))){
+      throw new Error('The AI model (segment.onnx) is missing from this installation. Reinstall the app to restore it.');
+    }
 
     async function make(n){
       ort.env.wasm.numThreads = n;
@@ -5064,7 +5104,19 @@ async function getSegmenter(){
     }catch(e){
       // If multi-threading can't start for any reason, fall back to the
       // original single-threaded path so removal always works.
-      ortSession = await make(1);
+      try{
+        ortSession = await make(1);
+      }catch(e2){
+        // Last resort: some old CPUs report SIMD but cannot actually run it.
+        try{ ort.env.wasm.simd = false; }catch(_){}
+        try{
+          ortSession = await make(1);
+        }catch(e3){
+          throw new Error('The background remover could not start on this computer'
+            + (simd ? '' : ' (its processor does not support the faster instructions)')
+            + '. Details: ' + ((e3 && e3.message) || e3));
+        }
+      }
     }
     return ortSession;
   })();
