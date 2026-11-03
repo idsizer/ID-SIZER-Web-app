@@ -3092,13 +3092,14 @@
     fetch(ACT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: normalize(input.value), deviceId: DEVICE })
+      body: JSON.stringify({ code: normalize(input.value), deviceId: DEVICE, client: "web" })
     })
     .then(function(r){ return r.json(); })
     .then(function(res){
       if(res && res.ok){ succeed(res); }
       else if(res && res.reason === "used"){ fail("This code is already activated on another computer."); }
       else if(res && res.reason === "invalid"){ fail("That code isn't valid. Check for typos and try again."); }
+      else if(res && res.reason === "wrong_platform"){ fail("That is a standalone app code. Use it in the desktop app, not on the website."); }
       else { fail("Activation failed. Please try again."); }
     })
     .catch(function(){
