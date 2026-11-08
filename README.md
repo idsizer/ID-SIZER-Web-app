@@ -258,11 +258,12 @@ code will not match. This is explained in the activation dialog.
 
 ### Issued activation codes
 
-This build accepts only the 1000 lifetime codes in
-`HTTP-XXXX-XXXX-XXXX` format. Their SHA-256 hashes are baked into
-`index.html`, and the same hashes are in the Worker (`worker-live.js` /
-`worker-new.js`, `VALID_HASHES`). A code that is not in that list is rejected
-by the browser before any network request, and the updated Worker rejects it
+This build accepts the 1000 sellable codes in `IDPS-XXXX-XXXX-XXXX` format.
+Their SHA-256 hashes are baked into `index.html`, together with the legacy
+`HTTP-XXXX-XXXX-XXXX` hashes so existing web customers can still restore an
+activation. The same hashes are in the Worker (`worker-new.js`,
+`VALID_HASHES`). A code that is not in that list is rejected by the browser
+before any network request, and the Worker rejects retired or unknown codes
 again on the server.
 
 - Keep the plaintext list (`activation-codes.txt` / `.csv` in the project
