@@ -1568,6 +1568,7 @@
   /* ---- Back to back tab ---- */
   body.b2b-mode #editPanelBody > *{display:none !important;}
   body.b2b-mode #editPanelBody > #b2bNote{display:block !important;}
+  body.b2b-mode #editPanelBody > #b2bForm{display:block !important;margin-top:12px;}
   .b2b-drops{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 4px;}
   .b2b-drop{
     position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
@@ -1823,87 +1824,6 @@
       <p class="panel-sub" data-i18n="step1sub">Choose how many photos and what sizes.</p>
       <div class="set-list" id="setList"></div>
 
-      <div class="custom-form" id="b2bForm">
-        <h3 class="custom-section-label" data-i18n="b2bTitle">Front &amp; back images</h3>
-        <div class="b2b-drops">
-          <div class="b2b-drop" id="b2bFrontDrop">
-            <span class="b2b-side" data-i18n="b2bFront">FRONT</span>
-            <span class="b2b-hint">drop or click</span>
-            <img id="b2bFrontThumb" alt="">
-          </div>
-          <div class="b2b-drop" id="b2bBackDrop">
-            <span class="b2b-side" data-i18n="b2bBack">BACK</span>
-            <span class="b2b-hint">drop or click</span>
-            <img id="b2bBackThumb" alt="">
-          </div>
-        </div>
-        <input type="file" id="b2bFrontInput" accept="image/*" style="display:none;">
-        <input type="file" id="b2bBackInput" accept="image/*" style="display:none;">
-        <div class="row" style="display:flex;gap:8px;align-items:center;margin:8px 0 2px;">
-          <button type="button" class="btn-secondary btn-small" id="b2bAddCardBtn" style="margin:0;padding:6px 10px;font-size:11.5px;" data-i18n="b2bAddCard">+ Add this card</button>
-          <span class="group-note" style="margin:0;">for a second, third&hellip; different ID</span>
-        </div>
-        <div id="b2bCardList" class="b2b-cards"></div>
-
-        <h3 class="custom-section-label" data-i18n="b2bCardSize">Card size</h3>
-        <div class="form-row">
-          <label>Size (in)</label>
-          <div class="dim-pair">
-            <input type="number" id="b2bW" min="0.5" step="0.005" value="3.375">
-            <span>in &times;</span>
-            <input type="number" id="b2bH" min="0.5" step="0.005" value="2.125">
-            <span>in</span>
-          </div>
-        </div>
-        <p class="group-note" style="margin:0 0 10px;" data-i18n="b2bHint">3.375 &times; 2.125 in is a standard PVC ID card.<br><strong>Drag any card</strong> to arrange it anywhere on the sheet &mdash; each front and back moves on its own. Drag empty space to move everything. Ctrl+Z undoes.</p>
-
-        <div class="form-row">
-          <label for="b2bStyle" data-i18n="b2bPairLayout">Pair layout</label>
-          <select id="b2bStyle">
-            <option value="side">Side by side &mdash; cut between</option>
-            <option value="stack">Top &amp; bottom &mdash; fold in the middle</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label for="b2bQty" data-i18n="b2bCopies">Copies of each</label>
-          <input type="number" id="b2bQty" min="1" max="60" value="1">
-        </div>
-        <div class="form-row">
-          <label for="b2bFlipBack" data-i18n="b2bBackImage">Back image</label>
-          <select id="b2bFlipBack">
-            <option value="0">Normal</option>
-            <option value="1">Upside down (for folding)</option>
-          </select>
-        </div>
-
-        <h3 class="custom-section-label">Paper / canvas</h3>
-        <div class="form-row">
-          <label for="b2bCanvasSize" data-i18n="b2bCanvasSizeLabel">Canvas size</label>
-          <select id="b2bCanvasSize">
-            <option value="4x6">4 x 6 in</option>
-            <option value="5x7">5 x 7 in</option>
-            <option value="letter" selected>8.5 x 11 in (Letter)</option>
-            <option value="a4">8.27 x 11.69 in (A4)</option>
-            <option value="custom">Custom size</option>
-          </select>
-        </div>
-        <div class="form-row" id="b2bCanvasDimsRow" style="display:none;">
-          <label data-i18n="canvasSizeIn">Canvas size (in)</label>
-          <div class="dim-pair">
-            <input type="number" id="b2bCanvasW" min="1" step="0.1" value="8.5">
-            <span>in &times;</span>
-            <input type="number" id="b2bCanvasH" min="1" step="0.1" value="11">
-            <span>in</span>
-          </div>
-        </div>
-
-        <div class="custom-actions" style="display:flex;gap:8px;">
-          <button type="button" class="btn-primary" id="b2bApplyBtn" style="flex:1 1 auto;" data-i18n="b2bApply">Use this layout</button>
-          <button type="button" class="btn-secondary" id="b2bResetPosBtn" title="Put every card back in its place" style="flex:0 0 auto;" data-i18n="b2bReset">Reset positions</button>
-        </div>
-        <div class="custom-error" id="b2bError"></div>
-      </div>
-
       <div class="custom-form" id="polaroidForm">
         <h3 class="custom-section-label" data-i18n="polaroidTitle">Polaroid style</h3>
         <div class="form-row">
@@ -2023,8 +1943,88 @@
       <div class="panel-body" id="editPanelBody">
 
         <div id="b2bNote" style="display:none;">
-          <p class="group-note" style="margin:0;">Add the <strong>front</strong> and <strong>back</strong> images in the
-          <strong>Back to back</strong> panel on the left, then press <strong>Use this layout</strong>.</p>
+          <p class="group-note" style="margin:0;">Add the <strong>front</strong> and <strong>back</strong> images below, choose the card size and layout, then press <strong>Use this layout</strong>.</p>
+        </div>
+
+        <div class="custom-form" id="b2bForm">
+          <h3 class="custom-section-label" data-i18n="b2bTitle">Front &amp; back images</h3>
+          <div class="b2b-drops">
+            <div class="b2b-drop" id="b2bFrontDrop">
+              <span class="b2b-side" data-i18n="b2bFront">FRONT</span>
+              <span class="b2b-hint">drop or click</span>
+              <img id="b2bFrontThumb" alt="">
+            </div>
+            <div class="b2b-drop" id="b2bBackDrop">
+              <span class="b2b-side" data-i18n="b2bBack">BACK</span>
+              <span class="b2b-hint">drop or click</span>
+              <img id="b2bBackThumb" alt="">
+            </div>
+          </div>
+          <input type="file" id="b2bFrontInput" accept="image/*" style="display:none;">
+          <input type="file" id="b2bBackInput" accept="image/*" style="display:none;">
+          <div class="row" style="display:flex;gap:8px;align-items:center;margin:8px 0 2px;">
+            <button type="button" class="btn-secondary btn-small" id="b2bAddCardBtn" style="margin:0;padding:6px 10px;font-size:11.5px;" data-i18n="b2bAddCard">+ Add this card</button>
+            <span class="group-note" style="margin:0;">for a second, third&hellip; different ID</span>
+          </div>
+          <div id="b2bCardList" class="b2b-cards"></div>
+
+          <h3 class="custom-section-label" data-i18n="b2bCardSize">Card size</h3>
+          <div class="form-row">
+            <label>Size (in)</label>
+            <div class="dim-pair">
+              <input type="number" id="b2bW" min="0.5" step="0.005" value="3.375">
+              <span>in &times;</span>
+              <input type="number" id="b2bH" min="0.5" step="0.005" value="2.125">
+              <span>in</span>
+            </div>
+          </div>
+          <p class="group-note" style="margin:0 0 10px;" data-i18n="b2bHint">3.375 &times; 2.125 in is a standard PVC ID card.<br><strong>Drag any card</strong> to arrange it anywhere on the sheet &mdash; each front and back moves on its own. Drag empty space to move everything. Ctrl+Z undoes.</p>
+
+          <div class="form-row">
+            <label for="b2bStyle" data-i18n="b2bPairLayout">Pair layout</label>
+            <select id="b2bStyle">
+              <option value="side">Side by side &mdash; cut between</option>
+              <option value="stack">Top &amp; bottom &mdash; fold in the middle</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="b2bQty" data-i18n="b2bCopies">Copies of each</label>
+            <input type="number" id="b2bQty" min="1" max="60" value="1">
+          </div>
+          <div class="form-row">
+            <label for="b2bFlipBack" data-i18n="b2bBackImage">Back image</label>
+            <select id="b2bFlipBack">
+              <option value="0">Normal</option>
+              <option value="1">Upside down (for folding)</option>
+            </select>
+          </div>
+
+          <h3 class="custom-section-label">Paper / canvas</h3>
+          <div class="form-row">
+            <label for="b2bCanvasSize" data-i18n="b2bCanvasSizeLabel">Canvas size</label>
+            <select id="b2bCanvasSize">
+              <option value="4x6">4 x 6 in</option>
+              <option value="5x7">5 x 7 in</option>
+              <option value="letter" selected>8.5 x 11 in (Letter)</option>
+              <option value="a4">8.27 x 11.69 in (A4)</option>
+              <option value="custom">Custom size</option>
+            </select>
+          </div>
+          <div class="form-row" id="b2bCanvasDimsRow" style="display:none;">
+            <label data-i18n="canvasSizeIn">Canvas size (in)</label>
+            <div class="dim-pair">
+              <input type="number" id="b2bCanvasW" min="1" step="0.1" value="8.5">
+              <span>in &times;</span>
+              <input type="number" id="b2bCanvasH" min="1" step="0.1" value="11">
+              <span>in</span>
+            </div>
+          </div>
+
+          <div class="custom-actions" style="display:flex;gap:8px;">
+            <button type="button" class="btn-primary" id="b2bApplyBtn" style="flex:1 1 auto;" data-i18n="b2bApply">Use this layout</button>
+            <button type="button" class="btn-secondary" id="b2bResetPosBtn" title="Put every card back in its place" style="flex:0 0 auto;" data-i18n="b2bReset">Reset positions</button>
+          </div>
+          <div class="custom-error" id="b2bError"></div>
         </div>
 
         <div id="dropzone" data-i18n="dropzone">
@@ -3578,7 +3578,14 @@ function idplLockMarkHTML(){
   PRESET_SETS.forEach(cfg => {
     const label = document.createElement('label');
     label.dataset.id = cfg.id;
-    label.addEventListener('click', () => selectSet(cfg.id));
+    label.addEventListener('click', () => {
+      selectSet(cfg.id);
+      // The Back to back form lives in step 2, so on a phone the selection
+      // would otherwise leave step 1 with nothing new to show.
+      if(cfg.isB2B && window.SIZERWeb && window.matchMedia('(max-width: 1039px)').matches){
+        window.SIZERWeb.setStep(2, { scroll:true, hash:true });
+      }
+    });
     if(isPresetSet(cfg.id)){
       label.className = 'set-card set-sub';
       label.innerHTML = '<span class="set-tag">'+cfg.tag+'</span><div class="set-desc">'+cfg.desc+'</div>';
