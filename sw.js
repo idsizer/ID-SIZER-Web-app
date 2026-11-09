@@ -2,15 +2,15 @@
    SIZER web edition — service worker
    ---------------------------------------------------------------------
    Caches the app shell so the site opens offline after the first visit.
-   The 88 MB background-removal model is NOT precached: it is fetched
-   from ml/ (or the CDN in idpl-config.js) the first time it is used,
-   then kept by the browser's normal HTTP cache.
+   The 88 MB background-removal model is NOT precached here: the page
+   stores it in Cache Storage (sizer-ml-v1 in index.html) after the first
+   background removal, so a refresh does not download it again.
 
    Bump CACHE_VERSION whenever you upload changed files. Shell assets are
    network-first, so a connected browser always shows the deployed copy;
    the cache is only used when the network is unavailable.
    ===================================================================== */
-const CACHE_VERSION = 'sizer-web-4.7.5-13';
+const CACHE_VERSION = 'sizer-web-4.7.5-15';
 const SHELL = [
   './',
   './index.html',
@@ -38,7 +38,10 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(
-        keys.filter((key) => key !== CACHE_VERSION).map((key) => caches.delete(key))
+        // Only remove old shell caches. The model cache (sizer-ml-*) must
+        // survive updates, otherwise every deploy would re-download 88 MB.
+        keys.filter((key) => key.indexOf('sizer-web-') === 0 && key !== CACHE_VERSION)
+          .map((key) => caches.delete(key))
       ))
       .then(() => self.clients.claim())
   );

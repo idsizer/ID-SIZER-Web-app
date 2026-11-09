@@ -292,10 +292,14 @@ After the first successful visit over HTTPS (or `localhost`):
   **Add to Home screen**.
 
 The service worker caches the app shell (`index.html`, CSS, JS, manifest and
-icons). The 88 MB model is **not** precached: the first background removal
-downloads it, after which the browser's HTTP cache normally keeps it. Offline
-use therefore covers the interface and editing; background removal needs the
-model to have been downloaded at least once.
+icons). The 88 MB model is **not** precached, and it is also not left to the
+browser's HTTP cache: Chrome often refuses to store a single cache entry that
+large, which made every refresh download it again. Instead the page copies
+`segment.onnx` into Cache Storage (`sizer-ml-v1`) the first time background
+removal runs, and loads it from there afterwards. Bump `ML_CACHE` in
+`index.html` when you replace `segment.onnx` so visitors fetch the new model.
+Offline use therefore covers the interface and editing; background removal
+needs the model to have been downloaded at least once.
 
 When you change any shell file, bump `CACHE_VERSION` in `sw.js` (for example
 `sizer-web-4.7.5-7` → `sizer-web-4.7.5-8`). Shell files are cached for offline
@@ -359,7 +363,7 @@ browser imposes a few differences:
 - **Activation:** tied to this browser profile's storage and random device ID,
   not to the operating system.
 - **Background removal:** runs in the browser, so the first run is slower and
-  the model download is required once per browser cache.
+  the 88 MB model is downloaded once, then kept in Cache Storage.
 - **Offline:** the shell is cached, but the first model download still needs a
   connection.
 

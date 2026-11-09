@@ -5269,6 +5269,56 @@ const bgError     = document.getElementById('bgError');
 let ortSession = null;
 let ortLoading = null;
 
+// The segmentation model is ~88 MB. Chrome often refuses to keep a single
+// entry that large in its HTTP cache, so a refresh used to download it again.
+// Cache Storage holds it reliably; bump ML_CACHE when segment.onnx changes.
+const ML_CACHE = 'sizer-ml-v1';
+let segModelBuffer = null;
+
+async function readCachedModel(){
+  if(segModelBuffer) return segModelBuffer;
+  const url = ML_DIR + 'segment.onnx';
+
+  if(typeof caches !== 'undefined'){
+    try{
+      const cache = await caches.open(ML_CACHE);
+      const hit = await cache.match(url);
+      if(hit){
+        bgSay('Loading the AI model from this device…');
+        segModelBuffer = await hit.arrayBuffer();
+        return segModelBuffer;
+      }
+    }catch(e){}
+  }
+
+  bgSay('Downloading the AI model (about 88 MB, one time)…');
+  let res;
+  try{
+    res = await fetch(url);
+  }catch(e){
+    throw new Error('The AI model (segment.onnx) could not be downloaded. Check your connection and try again.');
+  }
+  if(!res.ok){
+    throw new Error('The AI model (segment.onnx) is missing from this installation (' + res.status + '). Reinstall the app to restore it.');
+  }
+
+  const blob = await res.blob();
+  if(typeof caches !== 'undefined'){
+    try{
+      const cache = await caches.open(ML_CACHE);
+      await cache.put(url, new Response(blob, {
+        headers: { 'Content-Type': 'application/octet-stream' }
+      }));
+      // Ask the browser to keep this cache instead of evicting it.
+      if(navigator.storage && navigator.storage.persist){
+        navigator.storage.persist().catch(function(){});
+      }
+    }catch(e){}
+  }
+  segModelBuffer = await blob.arrayBuffer();
+  return segModelBuffer;
+}
+
 function bgSay(msg){
   bgError.style.display = 'none';
   if(!msg){ bgProgress.style.display = 'none'; return; }
@@ -5312,8 +5362,12 @@ async function getSegmenter(){
         const h = await fetch(ML_DIR + file, { method:'HEAD' });
         if(h.ok) return true;
       }catch(e){}
-      try{ const r = await fetch(ML_DIR + file, { method:'GET' }); return r.ok; }
-      catch(e){ return false; }
+      // Some hosts refuse HEAD. Ask for a single byte instead of pulling the
+      // whole runtime file (each .wasm is about 10 MB).
+      try{
+        const r = await fetch(ML_DIR + file, { headers: { Range: 'bytes=0-0' } });
+        return r.ok || r.status === 206;
+      }catch(e){ return false; }
     }
 
     // Does this CPU support WASM SIMD? Older processors do not, and the
@@ -5347,19 +5401,17 @@ async function getSegmenter(){
     if(!(await present(needed))){
       throw new Error('The AI file "' + needed + '" is missing from this installation. Reinstall the app to restore it.');
     }
-    if(!(await present('segment.onnx'))){
-      throw new Error('The AI model (segment.onnx) is missing from this installation. Reinstall the app to restore it.');
-    }
 
     async function make(n){
       ort.env.wasm.numThreads = n;
-      return ort.InferenceSession.create(ML_DIR + 'segment.onnx', {
+      const model = await readCachedModel();
+      return ort.InferenceSession.create(new Uint8Array(model), {
         executionProviders: ['wasm'],
         graphOptimizationLevel: 'all'
       });
     }
 
-    bgSay('Loading the model (about 88 MB, first time only)…');
+    bgSay('Loading the AI model…');
     try{
       ortSession = await make(threads);
     }catch(e){
@@ -5613,7 +5665,8 @@ async function removeBackground(){
       // single-threaded and try once more, so removal always completes.
       ortSession = null;
       ort.env.wasm.numThreads = 1;
-      const solo = await ort.InferenceSession.create(ML_DIR + 'segment.onnx', {
+      const model = await readCachedModel();
+      const solo = await ort.InferenceSession.create(new Uint8Array(model), {
         executionProviders: ['wasm'], graphOptimizationLevel: 'all'
       });
       ortSession = solo;
