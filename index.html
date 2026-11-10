@@ -2083,6 +2083,10 @@
             </h3>
             <p class="group-note">Prints a white name bar at the bottom. Leave blank for none.</p>
             <input type="text" id="nameTagText" class="nametag-input" placeholder="Type your name here" maxlength="48" autocomplete="off">
+            <label class="nametag-check" for="nameTagStretch" style="margin-top:9px;">
+              <input type="checkbox" id="nameTagStretch">
+              <span data-i18n="nameTagStretch">Stretch to fit long names</span>
+            </label>
             <div class="nametag-pick-row" id="nameTagPickRow" style="display:none;">
               <p class="hint"><strong>Click a photo</strong> to tag it, or drag the tag below onto one.</p>
               <div class="nametag-chip-line">
@@ -6403,6 +6407,10 @@ const nameTagClearBtn = document.getElementById('nameTagClearBtn');
 const nameTagCountNote = document.getElementById('nameTagCountNote');
 const nameTagBand   = document.getElementById('nameTagBand');
 const nameTagBandText = document.getElementById('nameTagBandText');
+const nameTagStretchEl = document.getElementById('nameTagStretch');
+// A scratch canvas measures the name exactly as the sheet will draw it.
+const nameTagMeasure = document.createElement('canvas').getContext('2d');
+const NAMETAG_MIN_SCALE = 0.55; // never squeeze the name narrower than this
 
 // Every photo drawn on the sheet, in draw order, with its rectangle in canvas
 // pixels. Rebuilt on every render and used to hit-test clicks and drops.
@@ -6468,6 +6476,30 @@ function fitNameTagFont(text, maxWidth, startSize){
   return size;
 }
 
+function nameTagStretchOn(){
+  return !!(nameTagStretchEl && nameTagStretchEl.checked);
+}
+function measureNameTagWidth(text, size){
+  nameTagMeasure.font = `700 ${size}px Arial, Helvetica, sans-serif`;
+  return nameTagMeasure.measureText(text).width;
+}
+// Stretch fit: keep the name as tall as possible and squeeze it horizontally
+// so a long name fills the bar instead of shrinking to a tiny font. If the
+// squeeze would go below NAMETAG_MIN_SCALE, shrink the font just enough to
+// keep the result readable.
+function fitNameTagStretch(text, maxWidth, startSize){
+  let size = startSize;
+  let width = measureNameTagWidth(text, size);
+  let scale = width > 0 ? maxWidth / width : 1;
+  if(scale < NAMETAG_MIN_SCALE){
+    size = Math.max(3, size * scale / NAMETAG_MIN_SCALE);
+    width = measureNameTagWidth(text, size);
+    scale = width > 0 ? maxWidth / width : 1;
+  }
+  if(scale > 1) scale = 1; // short names keep their normal size
+  return { size, scale };
+}
+
 function drawNameTag(dx, dy, w, h, nameText){
   const text = (nameText !== undefined && nameText !== null) ? String(nameText) : nameTagValue();
   if(!text) return;
@@ -6484,12 +6516,22 @@ function drawNameTag(dx, dy, w, h, nameText){
   ctx.fillRect(dx, bandY, w, bandH);
 
   const maxWidth = Math.max(1, w - w * 0.12);
-  const size = fitNameTagFont(text, maxWidth, bandH * 0.62);
-  ctx.font = `700 ${size}px Arial, Helvetica, sans-serif`;
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(text, dx + w / 2, bandY + bandH / 2);
+  if(nameTagStretchOn()){
+    const fit = fitNameTagStretch(text, maxWidth, bandH * 0.62);
+    ctx.font = `700 ${fit.size}px Arial, Helvetica, sans-serif`;
+    ctx.save();
+    ctx.translate(dx + w / 2, bandY + bandH / 2);
+    ctx.scale(fit.scale, 1);
+    ctx.fillText(text, 0, 0);
+    ctx.restore();
+  } else {
+    const size = fitNameTagFont(text, maxWidth, bandH * 0.62);
+    ctx.font = `700 ${size}px Arial, Helvetica, sans-serif`;
+    ctx.fillText(text, dx + w / 2, bandY + bandH / 2);
+  }
 
   ctx.textAlign = 'start';
   ctx.textBaseline = 'alphabetic';
@@ -6509,12 +6551,24 @@ function syncNameTagPreview(){
   const bandH = Math.max(10, BOXH * NAMETAG_BAND_RATIO);
   nameTagBand.style.height = bandH + 'px';
   const maxWidth = Math.max(1, BOXW - BOXW * 0.12);
-  let size = bandH * 0.62;
-  nameTagBandText.style.fontSize = size + 'px';
-  for(let i = 0; i < 60 && size > 3; i++){
-    if(nameTagBandText.scrollWidth <= maxWidth) break;
-    size -= Math.max(0.4, size * 0.06);
+  if(nameTagStretchOn()){
+    const fit = fitNameTagStretch(text, maxWidth, bandH * 0.62);
+    nameTagBandText.style.fontSize = fit.size + 'px';
+    nameTagBandText.style.display = 'inline-block';
+    nameTagBandText.style.flex = '0 0 auto';
+    nameTagBandText.style.transformOrigin = 'center center';
+    nameTagBandText.style.transform = `scaleX(${fit.scale})`;
+  } else {
+    nameTagBandText.style.display = '';
+    nameTagBandText.style.flex = '';
+    nameTagBandText.style.transform = 'none';
+    let size = bandH * 0.62;
     nameTagBandText.style.fontSize = size + 'px';
+    for(let i = 0; i < 60 && size > 3; i++){
+      if(nameTagBandText.scrollWidth <= maxWidth) break;
+      size -= Math.max(0.4, size * 0.06);
+      nameTagBandText.style.fontSize = size + 'px';
+    }
   }
 }
 
@@ -6542,6 +6596,14 @@ function onNameTagChanged(){
 }
 
 nameTagText.addEventListener('input', onNameTagChanged);
+
+if(nameTagStretchEl){
+  try{ nameTagStretchEl.checked = localStorage.getItem('idpl_nametag_stretch') === '1'; }catch(e){}
+  nameTagStretchEl.addEventListener('change', ()=>{
+    try{ localStorage.setItem('idpl_nametag_stretch', nameTagStretchEl.checked ? '1' : '0'); }catch(e){}
+    onNameTagChanged();
+  });
+}
 
 nameTagAllBtn.addEventListener('click', ()=>{
   const nm = nameTagValue();

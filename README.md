@@ -328,6 +328,18 @@ On iPhone/iPad, use **AirPrint** and the same paper and scale settings. The
 
 The trial watermark and paid-output checks are preserved from the desktop app.
 
+### ID name tags
+
+The **ID name tag** group prints a white bar with the name at the bottom of each
+photo. Type a name, then **Tag all photos** or click individual photos to tag
+them. Tags already placed keep their own text, so editing the box afterwards
+only affects new tags.
+
+**Stretch to fit long names** keeps the name tall and squeezes it horizontally
+instead of shrinking the font, so long customer names still fill the bar. Short
+names are left at their normal size. The setting is remembered in
+`localStorage` (`idpl_nametag_stretch`).
+
 ---
 
 ## Background removal
