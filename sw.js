@@ -10,7 +10,7 @@
    network-first, so a connected browser always shows the deployed copy;
    the cache is only used when the network is unavailable.
    ===================================================================== */
-const CACHE_VERSION = 'sizer-web-4.7.5-15';
+const CACHE_VERSION = 'sizer-web-4.7.5-16';
 const SHELL = [
   './',
   './index.html',
@@ -18,6 +18,7 @@ const SHELL = [
   './web-bridge.js',
   './web-app.js',
   './idpl-config.js',
+  './attire/men-black-suit.png',
   './manifest.webmanifest',
   './icons/icon-180.png',
   './icons/icon-192.png',

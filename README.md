@@ -330,6 +330,42 @@ The trial watermark and paid-output checks are preserved from the desktop app.
 
 ---
 
+## Formal attire and auto-fit
+
+Open the attire editor from the photo tools. It offers built-in formal outfits
+plus any PNGs you import:
+
+- **Men:** black suit (photo-style PNG), navy suit, charcoal suit, and a Barong
+  Tagalog.
+- **Women:** black blazer, navy blazer, burgundy blazer, and a Filipiniana
+  blouse.
+
+The vector outfits are generated inline (SVG), so they add almost nothing to
+the download. Only the black men's suit is a PNG (`attire/men-black-suit.png`),
+and it is part of the offline shell cache.
+
+**Auto-fit to person** finds the subject and places the selected outfit on the
+shoulders:
+
+- If the photo already has transparency (for example after background removal),
+  the person is measured from the alpha channel, which is instant.
+- Otherwise the ISNet model measures the subject (the same 88 MB model used for
+  background removal), so the first opaque photo may take a few seconds.
+- It finds the shoulder line, scales the outfit to the shoulders, and centres
+  it under the chin. The result is a normal editable layer — drag it, resize,
+  rotate, change opacity, or use Liquify.
+
+**Style** has three choices: **Auto**, **Men**, and **Women**. On Auto, the app
+suggests men or women from the head-to-shoulder and hip-to-shoulder ratios and
+shows the confidence. The suggestion is only a hint: pick Men or Women to
+override it, and Auto-fit will use your choice. The choice is remembered in
+`localStorage` (`idpl_attire_style`).
+
+The manual editor is unchanged: import PNGs, Crop, Erase, Restore, Liquify,
+flip, front/back, reset, remove, and undo/redo all still work.
+
+---
+
 ## Background removal
 
 The background remover is the original ISNet model running locally in the
@@ -360,6 +396,8 @@ browser imposes a few differences:
 - **Outfits:** imported formal-attire PNGs are saved in browser
   `localStorage`. If the storage quota is full, an outfit remains available for
   the current session. The desktop version wrote files to the app data folder.
+  Built-in outfits need no storage: the vector ones are generated in code and
+  the men's black suit PNG is served from `attire/`.
 - **Activation:** tied to this browser profile's storage and random device ID,
   not to the operating system.
 - **Background removal:** runs in the browser, so the first run is slower and

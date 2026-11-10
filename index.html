@@ -1410,6 +1410,18 @@
   .attire-thumb.sel{ border-color:var(--accent); box-shadow:var(--focus); }
   .attire-thumb .del{ position:absolute; top:2px; right:2px; width:17px; height:17px; line-height:15px; text-align:center; font-size:11px; border-radius:50%; background:rgba(0,0,0,.55); color:#fff; border:none; cursor:pointer; }
   .attire-empty{ grid-column:1/-1; font-size:11.5px; color:var(--muted); text-align:center; padding:16px 6px; line-height:1.5; }
+  .attire-style-box{ margin-top:10px; padding:10px 11px; border:1px solid var(--line-strong); border-radius:10px; background:var(--card-2); }
+  .attire-style-row{ display:flex; align-items:center; gap:8px; }
+  .attire-style-row label{ margin:0; white-space:nowrap; }
+  .attire-style-row select{ flex:1; min-width:0; padding:7px 9px; font-size:12.5px; font-family:inherit; border:1.5px solid var(--line-strong); border-radius:8px; background:var(--card); color:var(--ink); }
+  .attire-autofit{ width:100%; margin-top:8px; }
+  .attire-auto-note{ font-size:11px; color:var(--muted); margin:6px 0 0; line-height:1.45; }
+  .attire-auto-note b{ color:var(--ink-2); }
+  .attire-thumb .tag{ position:absolute; left:3px; bottom:3px; font-size:8.5px; font-weight:800; letter-spacing:.04em; padding:1px 4px; border-radius:4px; background:rgba(0,0,0,.62); color:#fff; line-height:1.4; }
+  .attire-thumb .tag.w{ background:#a83a68; }
+  .attire-thumb .tag.m{ background:#2b5f9e; }
+  .attire-thumb.missing{ border-style:dashed; opacity:.55; }
+  .attire-group-label{ grid-column:1/-1; font-size:9.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--muted); margin:4px 0 -2px; }
   .attire-controls{ margin-top:12px; }
   .attire-tool-row{ display:flex; gap:8px; margin-bottom:10px; }
   .attire-tool{ flex:1; padding:8px; font-size:12.5px; font-weight:600; font-family:inherit; color:var(--ink-2); background:var(--card-2); border:1.5px solid var(--line-strong); border-radius:8px; cursor:pointer; }
@@ -1657,15 +1669,27 @@
     <div class="attire-body">
       <div class="attire-stage">
         <canvas id="attireCanvas" width="440" height="540"></canvas>
-        <p class="attire-hint" id="attireHint">Pick an outfit on the right, then drag it into place over the shoulders.</p>
+        <p class="attire-hint" id="attireHint">Pick an outfit, or click <b>Auto-fit to person</b> to detect the body and place it automatically.</p>
       </div>
       <div class="attire-side">
         <div class="attire-gallery-head">
-          <span data-i18n="attireGallery">Your outfits</span>
+          <span data-i18n="attireGallery">Outfits</span>
           <button type="button" class="btn-secondary btn-small" id="attireImportBtn" data-i18n="attireImport" style="margin:0;">Import PNG</button>
         </div>
         <div class="attire-gallery" id="attireGallery"></div>
         <input type="file" id="attireFileInput" accept="image/png,image/*" multiple style="display:none;">
+        <div class="attire-style-box">
+          <div class="attire-style-row">
+            <label class="pf-label" for="attireStyle" style="margin:0;">Style</label>
+            <select id="attireStyle" aria-label="Man or woman photo style">
+              <option value="auto">Auto (detect)</option>
+              <option value="men">Men</option>
+              <option value="women">Women</option>
+            </select>
+          </div>
+          <button type="button" class="btn-primary btn-small attire-autofit" id="attireAutoFit">Auto-fit to person</button>
+          <p class="attire-auto-note" id="attireAutoNote">Auto detects the person, suggests Men or Women, and fits the selected outfit. If nothing is selected, it picks a suit for the suggested style.</p>
+        </div>
         <div class="attire-controls" id="attireControls" style="display:none;">
           <div class="attire-tool-row">
             <button type="button" class="attire-tool active" id="attireToolAdjust" title="Adjust — move (V), rotate (R)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M12 2l-2.5 2.5M12 2l2.5 2.5M12 22l-2.5-2.5M12 22l2.5-2.5M2 12l2.5-2.5M2 12l2.5 2.5M22 12l-2.5-2.5M22 12l-2.5 2.5"/></svg></button>
@@ -8077,10 +8101,10 @@ function enterMultiMode(){
   }
 
   // ---- history ----
-  function snap(){ return { pw:clone(personWork), a: A?{ work:clone(A.work), origWork:A.origWork, src:A.src, cx:A.cx, cy:A.cy, size:A.size, rotDeg:A.rotDeg, op:A.op, flip:A.flip, front:A.front, baseScale:A.baseScale }:null, W:pw, H:ph }; }
+  function snap(){ return { pw:clone(personWork), a: A?{ work:clone(A.work), origWork:A.origWork, src:A.src, cx:A.cx, cy:A.cy, size:A.size, rotDeg:A.rotDeg, op:A.op, flip:A.flip, front:A.front, baseScale:A.baseScale, builtinName:A.builtinName, builtinStyle:A.builtinStyle, kind:A.kind, shoulderYFrac:A.shoulderYFrac, contentW:A.contentW, widthFactor:A.widthFactor }:null, W:pw, H:ph }; }
   function applySnap(s){
     personWork=clone(s.pw); pw=s.W; ph=s.H;
-    if(s.a){ A={ src:s.a.src, work:clone(s.a.work), origWork:s.a.origWork, cx:s.a.cx, cy:s.a.cy, size:s.a.size, rotDeg:s.a.rotDeg, op:s.a.op, flip:s.a.flip, front:s.a.front, baseScale:s.a.baseScale }; syncControls(); setLayerLabel(); }
+    if(s.a){ A={ src:s.a.src, work:clone(s.a.work), origWork:s.a.origWork, cx:s.a.cx, cy:s.a.cy, size:s.a.size, rotDeg:s.a.rotDeg, op:s.a.op, flip:s.a.flip, front:s.a.front, baseScale:s.a.baseScale, builtinName:s.a.builtinName, builtinStyle:s.a.builtinStyle, kind:s.a.kind, shoulderYFrac:s.a.shoulderYFrac, contentW:s.a.contentW, widthFactor:s.a.widthFactor }; syncControls(); setLayerLabel(); }
     else { A=null; }
     computeView(); render(); updUndoBtns();
   }
@@ -8089,16 +8113,165 @@ function enterMultiMode(){
   function redo(){ if(hi<hist.length-1){ hi++; applySnap(hist[hi]); } }
   function updUndoBtns(){ var u=$('attireUndo'),r=$('attireRedo'); if(u)u.disabled=hi<=0; if(r)r.disabled=hi>=hist.length-1; }
 
+  // ---- built-in formal outfits ----
+  function svgData(svg){ return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); }
+
+  function suitSVG(o){
+    var female = !!o.female;
+    var color = o.color || '#1a1a1e';
+    var light = o.light || '#3a3a42';
+    var dark = o.dark || '#0b0b0e';
+    var shirt = o.shirt || '#ffffff';
+    var shirtDark = o.shirtDark || '#e8e8ec';
+    var tie = o.tie || null;
+    var tieLight = o.tieLight || '#3a3a3a';
+    var g = female ? {
+      shoulderL:260, shoulderR:740, chestL:235, chestR:765,
+      waistL:315, waistR:685, bottomL:285, bottomR:715,
+      neckL:440, neckR:560, lapelTipY:650,
+      shirtTop:70, shirtBottom:660, buttonY1:760, buttonY2:880, pocketY:900
+    } : {
+      shoulderL:230, shoulderR:770, chestL:200, chestR:800,
+      waistL:230, waistR:770, bottomL:250, bottomR:750,
+      neckL:420, neckR:580, lapelTipY:790,
+      shirtTop:60, shirtBottom:835, buttonY1:850, buttonY2:980, pocketY:900
+    };
+    var torso = 'M ' + g.shoulderL + ' 110 C ' + (female?320:300) + ' 82 ' + (female?410:390) + ' 72 500 72 C ' + (female?590:610) + ' 72 ' + (female?680:700) + ' 82 ' + g.shoulderR + ' 110 L ' + g.chestR + ' 330 L ' + g.waistR + ' 640 L ' + g.bottomR + ' 1160 L ' + g.bottomL + ' 1160 L ' + g.waistL + ' 640 L ' + g.chestL + ' 330 Z';
+    var sleeve = female
+      ? 'M 260 105 L 190 140 C 160 158 148 195 144 240 L 128 520 C 122 570 136 605 175 615 L 200 625 L 170 1160 L 292 1160 L 280 640 L 260 110 Z'
+      : 'M 230 105 L 160 140 C 130 158 118 195 114 240 L 98 520 C 92 570 106 605 145 615 L 170 625 L 130 1160 L 262 1160 L 250 640 L 230 110 Z';
+    var shirtPanel = 'M ' + g.neckL + ' ' + g.shirtTop + ' L ' + g.neckR + ' ' + g.shirtTop + ' L 500 ' + g.shirtBottom + ' Z';
+    var collarL = 'M ' + g.neckL + ' ' + (g.shirtTop-5) + ' L 500 ' + (female?155:165) + ' L ' + (female?462:455) + ' ' + (female?185:190) + ' L ' + (g.neckL-25) + ' ' + (female?92:90) + ' Z';
+    var collarR = 'M ' + g.neckR + ' ' + (g.shirtTop-5) + ' L 500 ' + (female?155:165) + ' L ' + (female?538:545) + ' ' + (female?185:190) + ' L ' + (g.neckR+25) + ' ' + (female?92:90) + ' Z';
+    var lapelL = 'M ' + (female?430:410) + ' 55 L 500 ' + g.lapelTipY + ' L ' + (female?468:465) + ' ' + (g.lapelTipY+40) + ' L ' + (female?360:350) + ' 420 L ' + (female?335:320) + ' ' + (female?280:240) + ' Z';
+    var lapelR = 'M ' + (female?570:590) + ' 55 L 500 ' + g.lapelTipY + ' L ' + (female?532:535) + ' ' + (g.lapelTipY+40) + ' L ' + (female?640:650) + ' 420 L ' + (female?665:680) + ' ' + (female?280:240) + ' Z';
+    var tieMarkup = tie
+      ? '<path d="M 478 150 L 522 150 L 532 195 L 468 195 Z" fill="' + tie + '"/>' +
+        '<path d="M 468 195 L 532 195 L 548 800 L 500 852 L 452 800 Z" fill="' + tie + '"/>' +
+        '<path d="M 500 205 L 512 780 L 500 800 L 488 780 Z" fill="' + tieLight + '" opacity=".35"/>'
+      : '<path d="M 500 ' + (female?150:165) + ' L ' + (female?545:560) + ' ' + (female?250:270) + ' L 500 ' + (female?330:360) + ' L ' + (female?455:440) + ' ' + (female?250:270) + ' Z" fill="' + shirtDark + '" opacity=".55"/>';
+    var pocketL = 'M ' + (female?300:270) + ' ' + g.pocketY + ' L ' + (female?400:380) + ' ' + g.pocketY + ' L ' + (female?395:375) + ' ' + (g.pocketY+40) + ' L ' + (female?295:265) + ' ' + (g.pocketY+40) + ' Z';
+    var pocketR = 'M ' + (female?600:620) + ' ' + g.pocketY + ' L ' + (female?700:730) + ' ' + g.pocketY + ' L ' + (female?705:735) + ' ' + (g.pocketY+40) + ' L ' + (female?605:625) + ' ' + (g.pocketY+40) + ' Z';
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1200" viewBox="0 0 1000 1200">' +
+      '<defs>' +
+        '<linearGradient id="jacket" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + light + '"/><stop offset=".42" stop-color="' + color + '"/><stop offset="1" stop-color="' + dark + '"/></linearGradient>' +
+        '<linearGradient id="lapel" x1="0" y1="0" x2=".8" y2="1"><stop offset="0" stop-color="' + light + '"/><stop offset="1" stop-color="' + color + '"/></linearGradient>' +
+        '<linearGradient id="shirt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + shirt + '"/><stop offset="1" stop-color="' + shirtDark + '"/></linearGradient>' +
+      '</defs>' +
+      '<path d="' + torso + '" fill="url(#jacket)"/>' +
+      '<path d="' + sleeve + '" fill="url(#jacket)"/>' +
+      '<path d="' + sleeve + '" fill="url(#jacket)" transform="translate(1000,0) scale(-1,1)"/>' +
+      '<path d="' + shirtPanel + '" fill="url(#shirt)"/>' +
+      '<path d="' + collarL + '" fill="' + shirt + '"/>' +
+      '<path d="' + collarR + '" fill="' + shirt + '"/>' +
+      tieMarkup +
+      '<path d="' + lapelL + '" fill="url(#lapel)" stroke="' + dark + '" stroke-opacity=".45" stroke-width="2"/>' +
+      '<path d="' + lapelR + '" fill="url(#lapel)" stroke="' + dark + '" stroke-opacity=".45" stroke-width="2"/>' +
+      '<path d="M 500 ' + (g.lapelTipY+30) + ' C 505 ' + (g.lapelTipY+160) + ' 500 ' + (g.lapelTipY+260) + ' 500 1155" fill="none" stroke="' + dark + '" stroke-opacity=".55" stroke-width="3"/>' +
+      '<circle cx="520" cy="' + g.buttonY1 + '" r="10" fill="' + dark + '" stroke="' + light + '" stroke-opacity=".55" stroke-width="2"/>' +
+      '<circle cx="520" cy="' + g.buttonY2 + '" r="10" fill="' + dark + '" stroke="' + light + '" stroke-opacity=".55" stroke-width="2"/>' +
+      '<path d="' + pocketL + '" fill="' + light + '" fill-opacity=".28" stroke="' + dark + '" stroke-opacity=".4" stroke-width="2"/>' +
+      '<path d="' + pocketR + '" fill="' + light + '" fill-opacity=".28" stroke="' + dark + '" stroke-opacity=".4" stroke-width="2"/>' +
+      '<path d="' + (female?620:610) + ' 520 L 720 520 L 716 545 L ' + (female?616:606) + ' 545 Z" fill="' + light + '" fill-opacity=".22" stroke="' + dark + '" stroke-opacity=".35" stroke-width="2"/>' +
+      '<path d="M ' + (female?272:245) + ' 135 C ' + (female?280:255) + ' 330 ' + (female?265:240) + ' 700 ' + (female?272:250) + ' 1150" fill="none" stroke="' + dark + '" stroke-opacity=".32" stroke-width="2"/>' +
+      '<path d="M ' + (female?728:755) + ' 135 C ' + (female?720:745) + ' 330 ' + (female?735:760) + ' 700 ' + (female?728:750) + ' 1150" fill="none" stroke="' + dark + '" stroke-opacity=".32" stroke-width="2"/>' +
+      '<path d="M ' + (g.shoulderL+20) + ' 135 C ' + (g.shoulderL+90) + ' 110 ' + (g.shoulderL+170) + ' 100 500 100" fill="none" stroke="' + light + '" stroke-opacity=".35" stroke-width="4"/>' +
+      '</svg>';
+  }
+
+  function barongSVG(){
+    var ivory = '#f8f3e7', light = '#fffdf7', dark = '#dfd2b6', thread = '#c9b98f';
+    var torso = 'M 230 110 C 300 82 390 72 500 72 C 610 72 700 82 770 110 L 795 330 L 765 640 L 750 1160 L 250 1160 L 235 640 L 205 330 Z';
+    var sleeve = 'M 230 105 L 160 140 C 130 158 118 195 114 240 L 98 520 C 92 570 106 605 145 615 L 170 625 L 130 1160 L 262 1160 L 250 640 L 230 110 Z';
+    var emb = [];
+    for(var i=0;i<7;i++){
+      var x=300+i*20;
+      emb.push('<path d="M '+x+' 300 C '+(x-8)+' 430 '+(x+8)+' 560 '+(x-4)+' 690" fill="none" stroke="'+thread+'" stroke-width="2" stroke-opacity=".55"/>');
+      emb.push('<path d="M '+(1000-x)+' 300 C '+(1000-x+8)+' 430 '+(1000-x-8)+' 560 '+(1000-x+4)+' 690" fill="none" stroke="'+thread+'" stroke-width="2" stroke-opacity=".55"/>');
+    }
+    for(var j=0;j<5;j++){
+      var y=360+j*70;
+      emb.push('<circle cx="500" cy="'+y+'" r="4" fill="'+thread+'" opacity=".7"/>');
+      emb.push('<path d="M 500 '+(y-12)+' L 500 '+(y+12)+' M 488 '+y+' L 512 '+y+'" stroke="'+thread+'" stroke-width="2" opacity=".6"/>');
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1200" viewBox="0 0 1000 1200">' +
+      '<defs>' +
+        '<linearGradient id="barong" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+light+'"/><stop offset=".45" stop-color="'+ivory+'"/><stop offset="1" stop-color="'+dark+'"/></linearGradient>' +
+      '</defs>' +
+      '<path d="'+torso+'" fill="url(#barong)"/>' +
+      '<path d="'+sleeve+'" fill="url(#barong)"/>' +
+      '<path d="'+sleeve+'" fill="url(#barong)" transform="translate(1000,0) scale(-1,1)"/>' +
+      '<path d="M 430 35 L 570 35 L 570 95 C 545 108 520 112 500 112 C 480 112 455 108 430 95 Z" fill="'+light+'" stroke="'+dark+'" stroke-width="2"/>' +
+      '<path d="M 500 95 L 500 1155" stroke="'+dark+'" stroke-width="2" opacity=".7"/>' +
+      '<path d="M 470 100 L 470 1155 M 530 100 L 530 1155" stroke="'+light+'" stroke-width="6" opacity=".55"/>' +
+      '<path d="M 300 450 L 415 450 L 410 495 L 295 495 Z" fill="'+light+'" fill-opacity=".5" stroke="'+dark+'" stroke-width="2"/>' +
+      '<path d="M 585 450 L 700 450 L 705 495 L 590 495 Z" fill="'+light+'" fill-opacity=".5" stroke="'+dark+'" stroke-width="2"/>' +
+      emb.join('') +
+      '<g fill="'+dark+'"><circle cx="500" cy="220" r="7"/><circle cx="500" cy="330" r="7"/><circle cx="500" cy="440" r="7"/><circle cx="500" cy="550" r="7"/><circle cx="500" cy="660" r="7"/><circle cx="500" cy="770" r="7"/><circle cx="500" cy="880" r="7"/><circle cx="500" cy="990" r="7"/></g>' +
+      '<path d="M 230 135 C 300 110 390 100 500 100" fill="none" stroke="'+light+'" stroke-opacity=".7" stroke-width="4"/>' +
+      '<path d="M 245 135 C 255 330 240 700 250 1150" fill="none" stroke="'+dark+'" stroke-opacity=".3" stroke-width="2"/>' +
+      '<path d="M 755 135 C 745 330 760 700 750 1150" fill="none" stroke="'+dark+'" stroke-opacity=".3" stroke-width="2"/>' +
+      '</svg>';
+  }
+
+  function filipinianaSVG(){
+    var ivory = '#fcf7ee', light = '#fffdf8', dark = '#e6d8bd', gold = '#c9a24a';
+    var torso = 'M 300 115 C 360 90 430 80 500 80 C 570 80 640 90 700 115 L 720 330 L 690 620 L 680 1160 L 320 1160 L 310 620 L 280 330 Z';
+    var sleeve = 'M 310 110 L 150 135 C 90 145 55 190 45 260 L 35 430 C 32 470 50 495 90 495 L 160 485 L 200 390 L 300 390 L 330 250 Z';
+    var emb = [];
+    for(var i=0;i<5;i++){
+      var y=520+i*70;
+      emb.push('<path d="M 500 '+(y-18)+' C 470 '+(y-30)+' 460 '+(y+10)+' 500 '+(y+20)+' C 540 '+(y+30)+' 530 '+(y-10)+' 500 '+(y-18)+' Z" fill="none" stroke="'+gold+'" stroke-width="2" stroke-opacity=".65"/>');
+      emb.push('<circle cx="500" cy="'+y+'" r="4" fill="'+gold+'" opacity=".75"/>');
+    }
+    for(var j=0;j<4;j++){
+      var x=110+j*42;
+      emb.push('<path d="M '+x+' 220 C '+(x-10)+' 300 '+(x+12)+' 360 '+(x-4)+' 440" fill="none" stroke="'+gold+'" stroke-width="2" stroke-opacity=".5"/>');
+      emb.push('<path d="M '+(1000-x)+' 220 C '+(1000-x+10)+' 300 '+(1000-x-12)+' 360 '+(1000-x+4)+' 440" fill="none" stroke="'+gold+'" stroke-width="2" stroke-opacity=".5"/>');
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1200" viewBox="0 0 1000 1200">' +
+      '<defs>' +
+        '<linearGradient id="fil" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+light+'"/><stop offset=".5" stop-color="'+ivory+'"/><stop offset="1" stop-color="'+dark+'"/></linearGradient>' +
+        '<linearGradient id="sash" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="'+gold+'" stop-opacity=".35"/><stop offset=".5" stop-color="'+gold+'" stop-opacity=".8"/><stop offset="1" stop-color="'+gold+'" stop-opacity=".35"/></linearGradient>' +
+      '</defs>' +
+      '<path d="'+torso+'" fill="url(#fil)"/>' +
+      '<path d="'+sleeve+'" fill="url(#fil)"/>' +
+      '<path d="'+sleeve+'" fill="url(#fil)" transform="translate(1000,0) scale(-1,1)"/>' +
+      '<path d="M 380 85 L 500 300 L 620 85 C 580 75 540 72 500 72 C 460 72 420 75 380 85 Z" fill="'+dark+'" fill-opacity=".55"/>' +
+      '<path d="M 390 95 L 500 280 L 610 95" fill="none" stroke="'+gold+'" stroke-width="3" stroke-opacity=".7"/>' +
+      '<path d="M 330 250 C 380 220 440 210 500 210 C 560 210 620 220 670 250" fill="none" stroke="'+light+'" stroke-width="5" opacity=".7"/>' +
+      '<path d="M 320 900 L 680 900 L 680 940 L 320 940 Z" fill="url(#sash)"/>' +
+      '<path d="M 500 940 L 500 1160" stroke="'+dark+'" stroke-width="2" opacity=".5"/>' +
+      emb.join('') +
+      '<path d="M 310 135 C 380 112 440 104 500 104" fill="none" stroke="'+light+'" stroke-opacity=".75" stroke-width="4"/>' +
+      '</svg>';
+  }
+
+  var BUILTINS = [
+    { name:'builtin:men-black', label:"Men's black suit", style:'men', kind:'suit', shoulderYFrac:0.095, contentW:0.958, widthFactor:1.35, dataURL:'attire/men-black-suit.png' },
+    { name:'builtin:men-navy', label:"Men's navy suit", style:'men', kind:'suit', shoulderYFrac:0.092, contentW:0.808, widthFactor:1.15, dataURL:svgData(suitSVG({ color:'#1d2b4f', light:'#3a4f7d', dark:'#111a33', tie:'#0d1730', tieLight:'#3f5688' })) },
+    { name:'builtin:men-charcoal', label:"Men's charcoal suit", style:'men', kind:'suit', shoulderYFrac:0.092, contentW:0.808, widthFactor:1.15, dataURL:svgData(suitSVG({ color:'#3b3d42', light:'#5c6068', dark:'#222327', tie:'#17181b', tieLight:'#5a5d64' })) },
+    { name:'builtin:men-barong', label:'Barong Tagalog', style:'men', kind:'barong', shoulderYFrac:0.092, contentW:0.808, widthFactor:1.15, dataURL:svgData(barongSVG()) },
+    { name:'builtin:women-black', label:"Women's black blazer", style:'women', kind:'suit', shoulderYFrac:0.092, contentW:0.748, widthFactor:1.10, dataURL:svgData(suitSVG({ female:true, color:'#19191d', light:'#3a3a42', dark:'#0a0a0c', shirt:'#fbf8f2', shirtDark:'#e8e0d2' })) },
+    { name:'builtin:women-navy', label:"Women's navy blazer", style:'women', kind:'suit', shoulderYFrac:0.092, contentW:0.748, widthFactor:1.10, dataURL:svgData(suitSVG({ female:true, color:'#1e2c4e', light:'#3c517c', dark:'#111a32', shirt:'#fbf8f2', shirtDark:'#e8e0d2' })) },
+    { name:'builtin:women-burgundy', label:"Women's burgundy blazer", style:'women', kind:'suit', shoulderYFrac:0.092, contentW:0.748, widthFactor:1.10, dataURL:svgData(suitSVG({ female:true, color:'#4a1f2a', light:'#713646', dark:'#2b1118', shirt:'#fbf8f2', shirtDark:'#e8e0d2' })) },
+    { name:'builtin:women-filipiniana', label:'Filipiniana blouse', style:'women', kind:'filipiniana', shoulderYFrac:0.096, contentW:0.95, widthFactor:1.15, dataURL:svgData(filipinianaSVG()) }
+  ];
+
   // ---- selection / gallery ----
-  function selectAttire(dataURL, name){
+  function selectAttire(dataURL, name, cb, meta){
     var im=new Image();
     im.onload=function(){
       var b=buildWork(im);
-      A={ src:im, work:b.work, origWork:b.origWork, baseScale:b.baseScale, cx:pw/2, cy:ph*0.72, size:100, rotDeg:0, op:1, flip:false, front:true };
+      A={ src:im, work:b.work, origWork:b.origWork, baseScale:b.baseScale, cx:pw/2, cy:ph*0.72, size:100, rotDeg:0, op:1, flip:false, front:true,
+          builtinName:meta?meta.name:null, builtinStyle:meta?meta.style:null, kind:meta?meta.kind:null,
+          shoulderYFrac:meta?meta.shoulderYFrac:null, contentW:meta?meta.contentW:null, widthFactor:meta?meta.widthFactor:null };
       controls.style.display=''; setTool('adjust'); adjustMode='move';
       syncControls(); setLayerLabel(); render(); pushHist(); markSelected(name);
       hint.textContent='Drag to move it over the shoulders. Sliders resize/rotate; Liquify reshapes.';
+      if(cb) cb(A);
     };
+    im.onerror=function(){ hint.textContent='That outfit image could not be loaded. Try importing it again.'; };
     im.src=dataURL;
   }
   function markSelected(name){ [].forEach.call(galleryEl.children,function(ch){ if(ch.dataset) ch.classList.toggle('sel', ch.dataset.name===name); }); }
@@ -8112,20 +8285,295 @@ function enterMultiMode(){
     im.onload=function(){ var c=document.createElement('canvas'); c.width=im.naturalWidth; c.height=im.naturalHeight; c.getContext('2d').drawImage(im,0,0); cb(c.toDataURL('image/png')); };
     im.onerror=function(){ cb(dataURL); }; im.src=dataURL; }
   function renderGallery(){
-    galleryEl.innerHTML=''; var a=api(); var items=[];
-    if(a){ try{ items=a.list()||[]; }catch(e){ items=[]; } }
-    items=items.concat(sess);
-    if(!items.length){ var e=document.createElement('div'); e.className='attire-empty';
-      e.textContent='No outfits yet. Click "Import PNG" to add suits, barong, blazers or uniforms. Transparent PNG works best.'; galleryEl.appendChild(e); return; }
-    items.forEach(function(it){
+    galleryEl.innerHTML=''; var a=api(); var mine=[];
+    if(a){ try{ mine=a.list()||[]; }catch(e){ mine=[]; } }
+    mine=mine.concat(sess);
+    function addItem(it, builtin){
       var d=document.createElement('div'); d.className='attire-thumb'; d.dataset.name=it.name;
-      var im=document.createElement('img'); im.src=it.dataURL; d.appendChild(im);
-      if(a){ var del=document.createElement('button'); del.className='del'; del.textContent='×'; del.title='Delete outfit';
+      var im=document.createElement('img'); im.src=it.dataURL; im.alt=it.label||it.name; im.loading='lazy';
+      im.onerror=function(){ d.classList.add('missing'); };
+      d.appendChild(im);
+      if(builtin && it.style){ var tag=document.createElement('span'); tag.className='tag '+(it.style==='women'?'w':'m'); tag.textContent=it.style==='women'?'W':'M'; d.appendChild(tag); }
+      if(!builtin && a){ var del=document.createElement('button'); del.className='del'; del.textContent='×'; del.title='Delete outfit';
         del.onclick=function(ev){ ev.stopPropagation(); try{ a.remove(it.name); }catch(e){} renderGallery(); }; d.appendChild(del); }
-      d.onclick=function(){ selectAttire(it.dataURL, it.name); };
+      d.onclick=function(){ selectAttire(it.dataURL, it.name, null, builtin?it:null); };
       galleryEl.appendChild(d);
-    });
+    }
+    var lbl=document.createElement('div'); lbl.className='attire-group-label'; lbl.textContent='Formal outfits'; galleryEl.appendChild(lbl);
+    BUILTINS.forEach(function(it){ addItem(it, true); });
+    if(mine.length){
+      var lbl2=document.createElement('div'); lbl2.className='attire-group-label'; lbl2.textContent='Your outfits'; galleryEl.appendChild(lbl2);
+      mine.forEach(function(it){ addItem(it, false); });
+    } else {
+      var e=document.createElement('div'); e.className='attire-empty'; e.style.padding='8px 6px';
+      e.textContent='Import a PNG to add your own suit, barong, blazer or uniform.'; galleryEl.appendChild(e);
+    }
   }
+
+  // ---- automatic person detection / fit ----
+  var lastMetrics=null, lastStyle=null, lastConfidence='low', styleMode='auto';
+  var metricsPromise=null, autoBusy=false;
+
+  function metricsFromMask(mask, W, H, sx, sy){
+    var x0=W, y0=H, x1=-1, y1=-1;
+    var rowL=new Int32Array(H), rowR=new Int32Array(H);
+    for(var y=0;y<H;y++){ rowL[y]=-1; rowR[y]=-1; }
+    for(var yy=0;yy<H;yy++){
+      var base=yy*W;
+      for(var x=0;x<W;x++){
+        if(mask[base+x]){
+          if(x<x0)x0=x; if(x>x1)x1=x;
+          if(yy<y0)y0=yy; if(yy>y1)y1=yy;
+          if(rowL[yy]<0)rowL[yy]=x;
+          rowR[yy]=x;
+        }
+      }
+    }
+    if(x1<x0||y1<y0) return null;
+    var bw=x1-x0+1, bh=y1-y0+1;
+    if(bw<4||bh<4) return null;
+    function rowWidth(y){ if(y<0||y>=H||rowL[y]<0) return 0; return rowR[y]-rowL[y]+1; }
+    function rowCenter(y){ if(y<0||y>=H||rowL[y]<0) return (x0+x1)/2; return (rowL[y]+rowR[y])/2; }
+    var headW=0;
+    for(var hy=Math.round(y0+bh*0.02); hy<=Math.round(y0+bh*0.18); hy++){ var hw=rowWidth(hy); if(hw>headW)headW=hw; }
+    // Shoulders: find the widest row of the upper body, then walk back up to
+    // the first row that is nearly that wide. That upper row is the top of the
+    // shoulders. Using the widest row itself lands on the chest, which places
+    // the outfit tens of pixels too low and leaves a gap under the chin.
+    var scanLo=Math.round(y0+bh*0.12), scanHi=Math.round(y0+bh*0.55);
+    var shoulderW=0, widestY=scanLo;
+    for(var sy2=scanLo; sy2<=scanHi; sy2++){ var sw=rowWidth(sy2); if(sw>shoulderW){shoulderW=sw;widestY=sy2;} }
+    var shoulderY=widestY;
+    var need=Math.max(shoulderW*0.85, headW*1.08);
+    if(shoulderW>=need){
+      for(var sy3=scanLo; sy3<=widestY; sy3++){ if(rowWidth(sy3)>=need){ shoulderY=sy3; break; } }
+    }
+    var hipW=0;
+    for(var hipy=Math.round(y0+bh*0.55); hipy<=Math.round(y0+bh*0.95); hipy++){ var hw2=rowWidth(hipy); if(hw2>hipW)hipW=hw2; }
+    return {
+      x0:x0*sx, y0:y0*sy, x1:(x1+1)*sx, y1:(y1+1)*sy,
+      w:bw*sx, h:bh*sy,
+      headW:headW*sx, shoulderW:shoulderW*sx, hipW:hipW*sx,
+      shoulderY:shoulderY*sy, shoulderCx:rowCenter(shoulderY)*sx,
+      source:'mask'
+    };
+  }
+
+  function metricsFromAlpha(){
+    if(!personWork) return null;
+    try{
+      var maxSide=512;
+      var sw=Math.min(maxSide, pw), sh=Math.max(1, Math.round(ph*sw/pw));
+      var c=document.createElement('canvas'); c.width=sw; c.height=sh;
+      var g=c.getContext('2d',{willReadFrequently:true});
+      g.drawImage(personWork,0,0,sw,sh);
+      var d=g.getImageData(0,0,sw,sh).data;
+      var N=sw*sh, transparent=0;
+      var mask=new Uint8Array(N);
+      for(var i=0;i<N;i++){ var a=d[i*4+3]; if(a<8) transparent++; if(a>32) mask[i]=1; }
+      if(transparent/N < 0.03) return null;
+      return metricsFromMask(mask, sw, sh, pw/sw, ph/sh);
+    }catch(e){ return null; }
+  }
+
+  function fallbackMetrics(){
+    var x0=pw*0.15, x1=pw*0.85, y0=ph*0.03, y1=ph*0.98;
+    return { x0:x0,y0:y0,x1:x1,y1:y1,w:x1-x0,h:y1-y0,
+      headW:(x1-x0)*0.28, shoulderW:(x1-x0)*0.78, hipW:(x1-x0)*0.7,
+      shoulderY:y0+(y1-y0)*0.30, shoulderCx:pw/2, source:'fallback' };
+  }
+
+  async function metricsFromModel(){
+    if(!personWork || typeof getSegmenter!=='function' || typeof toModelTensor!=='function') return null;
+    var session=await getSegmenter();
+    var out;
+    try{
+      out=await session.run({ [session.inputNames[0]]: toModelTensor(personWork, pw, ph) });
+    }catch(e){
+      try{
+        if(typeof ort==='undefined') return null;
+        ort.env.wasm.numThreads=1;
+        var model=await readCachedModel();
+        var solo=await ort.InferenceSession.create(new Uint8Array(model), { executionProviders:['wasm'], graphOptimizationLevel:'all' });
+        out=await solo.run({ [solo.inputNames[0]]: toModelTensor(personWork, pw, ph) });
+      }catch(e2){ return null; }
+    }
+    var first=out[session.outputNames[0]] || out[Object.keys(out)[0]];
+    if(!first||!first.data) return null;
+    var data=first.data, N=SEG_SIZE*SEG_SIZE;
+    var mask=new Uint8Array(N);
+    for(var i=0;i<N;i++) mask[i]=data[i]>0.5?1:0;
+    try{
+      if(typeof keepMainSubjectSized==='function'){
+        var keep=keepMainSubjectSized(data, SEG_SIZE, SEG_SIZE);
+        if(keep) mask=keep;
+      }
+    }catch(e){}
+    return metricsFromMask(mask, SEG_SIZE, SEG_SIZE, pw/SEG_SIZE, ph/SEG_SIZE);
+  }
+
+  function detectMetrics(){
+    if(lastMetrics) return Promise.resolve(lastMetrics);
+    var m=metricsFromAlpha();
+    if(m){ lastMetrics=m; return Promise.resolve(m); }
+    if(metricsPromise) return metricsPromise;
+    metricsPromise=metricsFromModel().then(function(mm){ if(mm) lastMetrics=mm; return mm; }).catch(function(){ return null; }).then(function(mm){ metricsPromise=null; return mm; });
+    return metricsPromise;
+  }
+
+  function styleFromMetrics(m){
+    if(!m || m.source==='fallback') return { style:null, confidence:'low', score:0 };
+    var headRatio=m.headW/Math.max(1,m.shoulderW);
+    var hipRatio=m.hipW/Math.max(1,m.shoulderW);
+    // Women tend to have a higher head-to-shoulder ratio (narrower shoulders)
+    // and a wider hip-to-shoulder ratio; men the opposite. The 0.54 centre was
+    // measured from test portraits, where female ~0.60-0.63 and male ~0.49-0.52.
+    // Head ratio carries more weight because it is the steadier of the two.
+    var score=(hipRatio-1)*3 + (headRatio-0.54)*12;
+    var style=score>=0?'women':'men';
+    var a=Math.abs(score);
+    var confidence=a>1.0?'high':a>0.3?'medium':'low';
+    return { style:style, confidence:confidence, score:score, headRatio:headRatio, hipRatio:hipRatio };
+  }
+
+  function outfitByName(name){
+    for(var i=0;i<BUILTINS.length;i++) if(BUILTINS[i].name===name) return BUILTINS[i];
+    return null;
+  }
+  function outfitDefault(style){
+    var name=style==='women'?'builtin:women-black':'builtin:men-black';
+    return outfitByName(name)||BUILTINS[0];
+  }
+  function effectiveStyle(){
+    if(styleMode==='men'||styleMode==='women') return styleMode;
+    return lastStyle||'men';
+  }
+  function styleLabel(style){ return style==='women'?'women’s':'men’s'; }
+  function updateStyleNote(sug){
+    var note=$('attireAutoNote'); if(!note) return;
+    if(!sug || !sug.style){ note.textContent='Style unclear from this photo. Choose Men or Women above, then Auto-fit.'; return; }
+    var label=sug.style==='women'?'woman':'man';
+    if(sug.confidence==='low'){ note.textContent='Leaning '+label+' (low confidence). Choose Men or Women above if that is wrong, then Auto-fit.'; }
+    else { note.textContent='Looks like a '+label+' photo ('+sug.confidence+' confidence). Auto-fit will use '+styleLabel(sug.style)+' outfits. You can change this above.'; }
+  }
+  function fitNote(m, style){
+    var bits=[];
+    // Only mention the suggestion when the user left the choice on Auto;
+    // a manual Men/Women choice should not be contradicted in the note.
+    if(styleMode==='auto' && lastStyle) bits.push('detected '+lastStyle+' ('+lastConfidence+' confidence)');
+    if(m && m.shoulderW) bits.push('shoulders '+Math.round(m.shoulderW)+' px');
+    return 'Auto-fit applied a '+styleLabel(style)+' outfit'+(bits.length?' — '+bits.join(', '):'')+'. Drag or use the sliders to fine-tune.';
+  }
+
+  function fitAttire(m, meta){
+    if(!A || !m) return;
+    var female=(meta && meta.style)==='women';
+    var imgW=A.src.naturalWidth||A.src.width;
+    var imgH=A.src.naturalHeight||A.src.height;
+    var contentW=(meta && meta.contentW)||0.85;
+    var widthFactor=(meta && meta.widthFactor)||1.35;
+    var frac=(meta && meta.shoulderYFrac)||0.15;
+    var targetTotal=m.shoulderW*widthFactor;
+    targetTotal=Math.max(targetTotal, m.w*0.55);
+    targetTotal=Math.min(targetTotal, pw*1.15);
+    var scale=targetTotal/(imgW*contentW);
+    var contentH=imgH*scale;
+    A.baseScale=scale; A.size=100;
+    A.cx=m.shoulderCx;
+    A.cy=m.shoulderY-(frac-0.5)*contentH;
+    var contentTop=A.cy-contentH/2;
+    var minTop=m.y0+m.h*0.14;
+    if(contentTop<minTop) A.cy+=(minTop-contentTop);
+    A.rotDeg=0; A.op=1; A.flip=false; A.front=true;
+    syncControls(); setLayerLabel(); render(); pushHist();
+    hint.textContent='Auto-fit placed the outfit on the shoulders. Drag or use the sliders to fine-tune.';
+  }
+
+  function switchBuiltin(style, refit){
+    var meta=outfitDefault(style);
+    selectAttire(meta.dataURL, meta.name, function(){
+      if(refit && lastMetrics) fitAttire(lastMetrics, meta);
+    }, meta);
+  }
+
+  async function runAutoFit(){
+    if(autoBusy || !personWork) return;
+    autoBusy=true;
+    var btn=$('attireAutoFit'), note=$('attireAutoNote');
+    if(btn) btn.disabled=true;
+    if(note) note.textContent='Finding the person…';
+    hint.textContent='Finding the person…';
+    try{
+      var m=await detectMetrics();
+      if(!m){
+        m=fallbackMetrics(); lastMetrics=m; lastStyle=null; lastConfidence='low';
+        if(note) note.textContent='Could not detect the body automatically. Used a centred fit — drag to adjust.';
+      } else {
+        var sug=styleFromMetrics(m);
+        lastStyle=sug.style; lastConfidence=sug.confidence;
+        if(styleMode==='auto') updateStyleNote(sug);
+      }
+      var style=effectiveStyle();
+      var meta=null;
+      if(A && A.builtinName) meta=outfitByName(A.builtinName);
+      if(!A){
+        meta=outfitDefault(style);
+        await new Promise(function(resolve){ selectAttire(meta.dataURL, meta.name, resolve, meta); });
+      } else if(!meta){
+        meta={ name:null, style:A.builtinStyle||style, kind:A.kind||'imported', shoulderYFrac:A.shoulderYFrac||0.15, contentW:A.contentW||0.85, widthFactor:A.widthFactor||1.35 };
+      }
+      fitAttire(m, meta);
+      if(note) note.textContent=fitNote(m, style);
+    }catch(err){
+      if(note) note.textContent='Auto-fit failed: '+(err&&err.message?err.message:err);
+    }finally{
+      autoBusy=false;
+      if(btn) btn.disabled=false;
+    }
+  }
+
+  function detectStyleQuiet(){
+    var note=$('attireAutoNote');
+    var m=metricsFromAlpha();
+    if(m){
+      lastMetrics=m;
+      var sug=styleFromMetrics(m); lastStyle=sug.style; lastConfidence=sug.confidence;
+      if(styleMode==='auto') updateStyleNote(sug);
+      return;
+    }
+    if(typeof ortSession!=='undefined' && ortSession){
+      if(note && styleMode==='auto') note.textContent='Detecting the person…';
+      detectMetrics().then(function(mm){
+        if(!mm) return;
+        var s=styleFromMetrics(mm); lastStyle=s.style; lastConfidence=s.confidence;
+        if(styleMode==='auto') updateStyleNote(s);
+      }).catch(function(){});
+    } else if(note && styleMode==='auto'){
+      note.textContent='Auto: click Auto-fit to detect the person and suggest Men or Women.';
+    }
+  }
+
+  (function initStyleControls(){
+    var sel=$('attireStyle'), btn=$('attireAutoFit');
+    try{
+      var saved=localStorage.getItem('idpl_attire_style');
+      if(saved==='auto'||saved==='men'||saved==='women'){ styleMode=saved; if(sel) sel.value=saved; }
+    }catch(e){}
+    if(sel) sel.onchange=function(){
+      styleMode=this.value;
+      try{ localStorage.setItem('idpl_attire_style', styleMode); }catch(e){}
+      var note=$('attireAutoNote');
+      if(styleMode==='auto'){
+        if(lastMetrics){ var sug=styleFromMetrics(lastMetrics); lastStyle=sug.style; lastConfidence=sug.confidence; updateStyleNote(sug); }
+        else if(note){ note.textContent='Auto: click Auto-fit to detect the person and suggest Men or Women.'; }
+        if(A && A.builtinStyle && lastStyle && A.builtinStyle!==lastStyle) switchBuiltin(lastStyle, true);
+      } else {
+        if(note) note.textContent='Using '+styleMode+'’s outfits. Auto-fit will use this choice.';
+        if(A && A.builtinStyle && A.builtinStyle!==styleMode) switchBuiltin(styleMode, true);
+      }
+    };
+    if(btn) btn.onclick=runAutoFit;
+  })();
 
   // ---- import ----
   $('attireImportBtn').onclick=function(){ fileInput.value=''; fileInput.click(); };
@@ -8350,12 +8798,20 @@ function enterMultiMode(){
     personOrig=document.createElement('canvas'); personOrig.width=pw; personOrig.height=ph; personOrig.getContext('2d').drawImage(img,0,0);
     personWork=clone(personOrig);
     A=null; crop=null; cropAspect=null; cropMode='free'; hist=[]; hi=-1; hover=null;
+    lastMetrics=null; lastStyle=null; lastConfidence='low'; metricsPromise=null;
+    var styleSel=$('attireStyle'); if(styleSel) styleSel.value=styleMode;
+    var autoNote=$('attireAutoNote');
+    if(autoNote){
+      if(styleMode==='men'||styleMode==='women') autoNote.textContent='Using '+styleMode+'’s outfits. Auto-fit will use this choice.';
+      else autoNote.textContent='Auto: click Auto-fit to detect the person and suggest Men or Women.';
+    }
     setBrushTarget('person');
     var m=document.querySelectorAll('.crop-mode'); for(var i=0;i<m.length;i++) m[i].classList.toggle('active', m[i].getAttribute('data-crop')==='free');
     $('cropCustomRow').style.display='none';
     computeView(); controls.style.display=''; setTool('adjust'); adjustMode='move';
     render(); renderGallery(); pushHist();
     gate.classList.add('show');
+    detectStyleQuiet();
   }
   function close(){ gate.classList.remove('show'); }
 
