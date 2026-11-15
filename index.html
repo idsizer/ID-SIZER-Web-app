@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  SIZER / ID Picture Layout
+  SIZER / ID SIZER
   Copyright (c) 2026 LKprintshop. All rights reserved.
   This software and its code are proprietary. Unauthorized copying,
   modification, redistribution, or resale is prohibited.
@@ -10,7 +10,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ID Picture Layout — SIZER Web</title>
+<title>ID SIZER</title>
 <meta name="author" content="LKprintshop">
 <meta name="copyright" content="(c) 2026 LKprintshop. All rights reserved.">
 <meta name="description" content="SIZER — make print-ready ID picture sheets in your browser. Works on Windows, macOS, iPhone, iPad and Android.">
@@ -31,7 +31,7 @@
 <style id="printStyle"></style>
 <style>
   /* =========================================================
-     ID Picture Layout — UI v2
+     ID SIZER — UI v2
      Light, high-contrast workspace. Every control is labelled,
      grouped, and sized for confident clicking.
      ========================================================= */
@@ -85,6 +85,8 @@
     --accent-deep:var(--accent-dark);
     --accent-soft:var(--accent-tint-2);
     --accent-soft-light:var(--accent-tint);
+    --pattern:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path d='M0 8h16M8 0v16' stroke='%235a6472' stroke-opacity='.10' stroke-width='1'/></svg>");
+    --pattern-size:16px 16px;
   }
 
   /* ---- Dark theme: just re-point the same variables ---- */
@@ -121,6 +123,8 @@
     --shadow-2:0 4px 12px rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.4);
     --shadow-3:0 12px 32px rgba(0,0,0,.55);
     --focus:0 0 0 3px rgba(226,64,75,.4);
+    --pattern:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'><circle cx='2' cy='2' r='1.1' fill='%23ffffff' fill-opacity='.075'/></svg>");
+    --pattern-size:18px 18px;
   }
   /* header bar + print note tuned for dark */
   html[data-theme="dark"] header{background:#171d24;}
@@ -147,7 +151,7 @@
     position:relative;
     display:flex; align-items:center; gap:10px;
     padding:9px 18px;
-    background:var(--accent); color:#fff;
+    background:var(--accent); color:var(--accent-ink);
     font-size:13px; font-weight:600;
     box-shadow:var(--shadow-1);
   }
@@ -169,7 +173,7 @@
   #updateMini{
     position:fixed; right:16px; bottom:16px; z-index:60;
     width:42px; height:42px; border-radius:50%;
-    background:var(--accent); color:#fff; border:none;
+    background:var(--accent); color:var(--accent-ink); border:none;
     font-size:18px; cursor:pointer; display:none;
     align-items:center; justify-content:center;
     box-shadow:0 6px 18px rgba(0,0,0,.28);
@@ -198,7 +202,13 @@
     font-family:'Segoe UI Variable Text','Segoe UI',Inter,Roboto,Helvetica,Arial,sans-serif;
     font-size:14px;
     line-height:1.5;
-    background:var(--bg);
+    /* A faint texture sits on the PAGE only. Cards, panels and the sheet stay
+       flat so nothing competes with the photos being laid out. */
+    background-color:var(--bg);
+    background-image:var(--pattern, none);
+    background-size:var(--pattern-size, auto);
+    background-repeat:repeat;
+    background-attachment:fixed;
     color:var(--ink);
     -webkit-font-smoothing:antialiased;
   }
@@ -1498,11 +1508,11 @@
   .attire-controls{ margin-top:12px; }
   .attire-tool-row{ display:flex; gap:8px; margin-bottom:10px; }
   .attire-tool{ flex:1; padding:8px; font-size:12.5px; font-weight:600; font-family:inherit; color:var(--ink-2); background:var(--card-2); border:1.5px solid var(--line-strong); border-radius:8px; cursor:pointer; }
-  .attire-tool.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .attire-tool.active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
   .attire-target-row{ display:flex; gap:8px; margin-bottom:8px; }
   .attire-target{ flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:8px 4px; font-size:11px; font-weight:600; color:var(--ink-2); background:var(--card-2); border:1.5px solid var(--line-strong); border-radius:9px; cursor:pointer; }
   .attire-target svg{ width:22px; height:22px; }
-  .attire-target.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .attire-target.active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
   .attire-range{ width:100%; margin:2px 0 6px; }
   .attire-btn-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
   .attire-foot{ display:flex; align-items:center; gap:10px; padding:12px 18px; border-top:1px solid var(--line); }
@@ -1593,7 +1603,7 @@
   }
   .pol-chip:hover{border-color:var(--accent);color:var(--accent-dark);}
   .pol-chip.active{
-    border-color:var(--accent);color:#fff;
+    border-color:var(--accent);color:var(--accent-ink);
     background:linear-gradient(180deg,var(--btn-red-top) 0%,var(--btn-red-bot) 100%);
   }
 
@@ -1694,6 +1704,106 @@
     color:#fff;background:#c0202c;box-shadow:0 1px 3px rgba(0,0,0,.22);
   }
   .set-lock.unlocked{ background:#12905a; }
+
+  /* portrait / landscape toggle */
+  .landscape-opt{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:12px;color:var(--ink-2);cursor:pointer;user-select:none;
+  }
+  .landscape-opt input{ margin:0; accent-color:var(--accent); cursor:pointer; }
+
+  /* ---------- pastel themes ---------- */
+  /* Soft surfaces with a deeper accent of the same family, so buttons keep
+     enough contrast for white text. Only the colours change - never layout. */
+  html[data-theme="rose"]{
+    --bg:#fbeef2; --bg-2:#f6e2e9; --card:#fffafc; --card-2:#fdf1f5;
+    --line:#f0d5de; --line-strong:#e0b8c6;
+    --ink:#3a232b; --ink-2:#6b4652; --muted:#94707d;
+    --accent:#f6c3d5; --accent-dark:#7a1538; --accent-ink:#7a1538;
+    --accent-tint:#fce4ec; --accent-tint-2:#f8d0de;
+    --btn-red-top:#f6c3d5; --btn-red-bot:#efb0c7;
+    --btn-red-top-h:#f0b9cd; --btn-red-bot-h:#e8a3bd;
+    --btn-red-edge:#e099b6;
+    --pattern:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='170' height='150' viewBox='0 0 170 150'><g transform='translate%2828 30%29 rotate%28-16%29 scale%280.78%29'><path d='M0 -1c5.5 0 9 4 9 9 0 6.5-5.5 13-9 17.5C-3.5 21-9 14.5-9 8c0-5 3.5-9 9-9z' fill='%23e07a9f' fill-opacity='.075'/><path d='M0 -2.5 -9.5 -6 -3.5 -6.5 -1 -12 1 -6.5 7 -6.5 1 -2.5z' fill='%23d4658d' fill-opacity='.09'/><path d='M0 -12v-3.5' stroke='%23d4658d' stroke-opacity='.085' stroke-width='1.4' stroke-linecap='round'/><g fill='%23ffffff' fill-opacity='.45'><circle cx='-3.4' cy='5' r='.75'/><circle cx='3.2' cy='6.4' r='.75'/><circle cx='0' cy='10.5' r='.75'/><circle cx='-4' cy='11.6' r='.65'/><circle cx='4.2' cy='12.4' r='.65'/><circle cx='0' cy='16.5' r='.6'/></g></g><g transform='translate%28106 22%29 rotate%2813%29 scale%280.6%29'><path d='M0 -1c5.5 0 9 4 9 9 0 6.5-5.5 13-9 17.5C-3.5 21-9 14.5-9 8c0-5 3.5-9 9-9z' fill='%23e07a9f' fill-opacity='.075'/><path d='M0 -2.5 -9.5 -6 -3.5 -6.5 -1 -12 1 -6.5 7 -6.5 1 -2.5z' fill='%23d4658d' fill-opacity='.09'/><path d='M0 -12v-3.5' stroke='%23d4658d' stroke-opacity='.085' stroke-width='1.4' stroke-linecap='round'/><g fill='%23ffffff' fill-opacity='.45'><circle cx='-3.4' cy='5' r='.75'/><circle cx='3.2' cy='6.4' r='.75'/><circle cx='0' cy='10.5' r='.75'/><circle cx='-4' cy='11.6' r='.65'/><circle cx='4.2' cy='12.4' r='.65'/><circle cx='0' cy='16.5' r='.6'/></g></g><g transform='translate%2866 82%29 rotate%28-6%29 scale%280.9%29'><path d='M0 -1c5.5 0 9 4 9 9 0 6.5-5.5 13-9 17.5C-3.5 21-9 14.5-9 8c0-5 3.5-9 9-9z' fill='%23e07a9f' fill-opacity='.075'/><path d='M0 -2.5 -9.5 -6 -3.5 -6.5 -1 -12 1 -6.5 7 -6.5 1 -2.5z' fill='%23d4658d' fill-opacity='.09'/><path d='M0 -12v-3.5' stroke='%23d4658d' stroke-opacity='.085' stroke-width='1.4' stroke-linecap='round'/><g fill='%23ffffff' fill-opacity='.45'><circle cx='-3.4' cy='5' r='.75'/><circle cx='3.2' cy='6.4' r='.75'/><circle cx='0' cy='10.5' r='.75'/><circle cx='-4' cy='11.6' r='.65'/><circle cx='4.2' cy='12.4' r='.65'/><circle cx='0' cy='16.5' r='.6'/></g></g><g transform='translate%28138 66%29 rotate%2822%29 scale%280.68%29'><path d='M0 -1c5.5 0 9 4 9 9 0 6.5-5.5 13-9 17.5C-3.5 21-9 14.5-9 8c0-5 3.5-9 9-9z' fill='%23e07a9f' fill-opacity='.075'/><path d='M0 -2.5 -9.5 -6 -3.5 -6.5 -1 -12 1 -6.5 7 -6.5 1 -2.5z' fill='%23d4658d' fill-opacity='.09'/><path d='M0 -12v-3.5' stroke='%23d4658d' stroke-opacity='.085' stroke-width='1.4' stroke-linecap='round'/><g fill='%23ffffff' fill-opacity='.45'><circle cx='-3.4' cy='5' r='.75'/><circle cx='3.2' cy='6.4' r='.75'/><circle cx='0' cy='10.5' r='.75'/><circle cx='-4' cy='11.6' r='.65'/><circle cx='4.2' cy='12.4' r='.65'/><circle cx='0' cy='16.5' r='.6'/></g></g><g transform='translate%2832 122%29 rotate%289%29 scale%280.64%29'><path d='M0 -1c5.5 0 9 4 9 9 0 6.5-5.5 13-9 17.5C-3.5 21-9 14.5-9 8c0-5 3.5-9 9-9z' fill='%23e07a9f' fill-opacity='.075'/><path d='M0 -2.5 -9.5 -6 -3.5 -6.5 -1 -12 1 -6.5 7 -6.5 1 -2.5z' fill='%23d4658d' fill-opacity='.09'/><path d='M0 -12v-3.5' stroke='%23d4658d' stroke-opacity='.085' stroke-width='1.4' stroke-linecap='round'/><g fill='%23ffffff' fill-opacity='.45'><circle cx='-3.4' cy='5' r='.75'/><circle cx='3.2' cy='6.4' r='.75'/><circle cx='0' cy='10.5' r='.75'/><circle cx='-4' cy='11.6' r='.65'/><circle cx='4.2' cy='12.4' r='.65'/><circle cx='0' cy='16.5' r='.6'/></g></g><g transform='translate%28112 130%29 rotate%28-24%29 scale%280.82%29'><path d='M0 -1c5.5 0 9 4 9 9 0 6.5-5.5 13-9 17.5C-3.5 21-9 14.5-9 8c0-5 3.5-9 9-9z' fill='%23e07a9f' fill-opacity='.075'/><path d='M0 -2.5 -9.5 -6 -3.5 -6.5 -1 -12 1 -6.5 7 -6.5 1 -2.5z' fill='%23d4658d' fill-opacity='.09'/><path d='M0 -12v-3.5' stroke='%23d4658d' stroke-opacity='.085' stroke-width='1.4' stroke-linecap='round'/><g fill='%23ffffff' fill-opacity='.45'><circle cx='-3.4' cy='5' r='.75'/><circle cx='3.2' cy='6.4' r='.75'/><circle cx='0' cy='10.5' r='.75'/><circle cx='-4' cy='11.6' r='.65'/><circle cx='4.2' cy='12.4' r='.65'/><circle cx='0' cy='16.5' r='.6'/></g></g><g transform='translate%28152 116%29 rotate%28-3%29 scale%280.54%29'><path d='M0 -1c5.5 0 9 4 9 9 0 6.5-5.5 13-9 17.5C-3.5 21-9 14.5-9 8c0-5 3.5-9 9-9z' fill='%23e07a9f' fill-opacity='.075'/><path d='M0 -2.5 -9.5 -6 -3.5 -6.5 -1 -12 1 -6.5 7 -6.5 1 -2.5z' fill='%23d4658d' fill-opacity='.09'/><path d='M0 -12v-3.5' stroke='%23d4658d' stroke-opacity='.085' stroke-width='1.4' stroke-linecap='round'/><g fill='%23ffffff' fill-opacity='.45'><circle cx='-3.4' cy='5' r='.75'/><circle cx='3.2' cy='6.4' r='.75'/><circle cx='0' cy='10.5' r='.75'/><circle cx='-4' cy='11.6' r='.65'/><circle cx='4.2' cy='12.4' r='.65'/><circle cx='0' cy='16.5' r='.6'/></g></g><g transform='translate%2884 48%29 rotate%2831%29 scale%280.48%29'><path d='M0 -1c5.5 0 9 4 9 9 0 6.5-5.5 13-9 17.5C-3.5 21-9 14.5-9 8c0-5 3.5-9 9-9z' fill='%23e07a9f' fill-opacity='.075'/><path d='M0 -2.5 -9.5 -6 -3.5 -6.5 -1 -12 1 -6.5 7 -6.5 1 -2.5z' fill='%23d4658d' fill-opacity='.09'/><path d='M0 -12v-3.5' stroke='%23d4658d' stroke-opacity='.085' stroke-width='1.4' stroke-linecap='round'/><g fill='%23ffffff' fill-opacity='.45'><circle cx='-3.4' cy='5' r='.75'/><circle cx='3.2' cy='6.4' r='.75'/><circle cx='0' cy='10.5' r='.75'/><circle cx='-4' cy='11.6' r='.65'/><circle cx='4.2' cy='12.4' r='.65'/><circle cx='0' cy='16.5' r='.6'/></g></g></svg>");
+    --pattern-size:170px 150px;
+  }
+  html[data-theme="sky"]{
+    --bg:#eaf2fb; --bg-2:#dfeaf7; --card:#f9fcff; --card-2:#eef5fd;
+    --line:#cfe0f2; --line-strong:#adc8e4;
+    --ink:#1c2a3a; --ink-2:#3f5670; --muted:#6c8196;
+    --accent:#bcd9f5; --accent-dark:#123f6b; --accent-ink:#123f6b;
+    --accent-tint:#e3f0fd; --accent-tint-2:#cde2fa;
+    --btn-red-top:#bcd9f5; --btn-red-bot:#a6cbf0;
+    --btn-red-top-h:#b0d1f2; --btn-red-bot-h:#96c0ea;
+    --btn-red-edge:#8ab5e2;
+    --pattern:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><path d='M0 20L20 0' stroke='%23123f6b' stroke-opacity='.10' stroke-width='1'/></svg>");
+    --pattern-size:20px 20px;
+  }
+  html[data-theme="matcha"]{
+    --bg:#eef1e2; --bg-2:#e5ead4; --card:#f9fbf2; --card-2:#f0f4e6;
+    --line:#dbe3c4; --line-strong:#bfcb9e;
+    --ink:#232a15; --ink-2:#454f2c; --muted:#6f7a52;
+    --accent:#cbdc9a; --accent-dark:#3c4a14; --accent-ink:#3c4a14;
+    --accent-tint:#eaf1d6; --accent-tint-2:#dae7ba;
+    --btn-red-top:#cbdc9a; --btn-red-bot:#bcd085;
+    --btn-red-top-h:#c3d68f; --btn-red-bot-h:#b0c674;
+    --btn-red-edge:#a8bd6e;
+    --pattern:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'><path d='M0 0l14 14M14 0L0 14' stroke='%233c4a14' stroke-opacity='.085' stroke-width='1'/></svg>");
+    --pattern-size:14px 14px;
+  }
+  html[data-theme="lavender"]{
+    --bg:#f2eefb; --bg-2:#e9e2f7; --card:#fcfaff; --card-2:#f4effd;
+    --line:#ded3f0; --line-strong:#c4b3e3;
+    --ink:#2b2340; --ink-2:#4d4269; --muted:#786c94;
+    --accent:#d6c8f2; --accent-dark:#3b2a63; --accent-ink:#3b2a63;
+    --accent-tint:#ede5fb; --accent-tint-2:#ddd0f6;
+    --btn-red-top:#d6c8f2; --btn-red-bot:#c7b5ed;
+    --btn-red-top-h:#cfbef0; --btn-red-bot-h:#bda9e8;
+    --btn-red-edge:#ae97e0;
+    --pattern:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'><path d='M11 0l11 11-11 11L0 11z' fill='none' stroke='%233b2a63' stroke-opacity='.10' stroke-width='1'/></svg>");
+    --pattern-size:22px 22px;
+  }
+  html[data-theme="graytone"]{
+    --bg:#eeeeee; --bg-2:#e4e4e4; --card:#fbfbfb; --card-2:#f2f2f2;
+    --line:#dcdcdc; --line-strong:#bdbdbd;
+    --ink:#1f1f1f; --ink-2:#454545; --muted:#767676;
+    --accent:#cfcfcf; --accent-dark:#333333; --accent-ink:#333333;
+    --accent-tint:#ebebeb; --accent-tint-2:#dfdfdf;
+    --btn-red-top:#cfcfcf; --btn-red-bot:#bfbfbf;
+    --btn-red-top-h:#c7c7c7; --btn-red-bot-h:#b4b4b4;
+    --btn-red-edge:#a9a9a9;
+    --pattern:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'><circle cx='2' cy='2' r='1.2' fill='%234a4a4a' fill-opacity='.10'/></svg>");
+    --pattern-size:20px 20px;
+  }
+  html[data-theme="tealorange"]{
+    --bg:#e6f0f1; --bg-2:#d8e6e8; --card:#f6fbfb; --card-2:#eaf4f5;
+    --line:#c8dde0; --line-strong:#a2c4c8;
+    --ink:#12282b; --ink-2:#2f4c50; --muted:#5d7c80;
+    --accent:#f7c9a0; --accent-dark:#7a3d0c; --accent-ink:#7a3d0c;
+    --accent-tint:#fdeadb; --accent-tint-2:#f8d7bd;
+    --btn-red-top:#f7c9a0; --btn-red-bot:#f2b87f;
+    --btn-red-top-h:#f4c093; --btn-red-bot-h:#eeae70;
+    --btn-red-edge:#e5a469;
+    --pattern:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='24' viewBox='0 0 12 24'><path d='M0 0v24' stroke='%2312282b' stroke-opacity='.09' stroke-width='1'/></svg>");
+    --pattern-size:12px 24px;
+  }
+
+  /* the little palette menu on the theme button */
+  .theme-menu{
+    position:absolute; z-index:9000; display:none;
+    background:var(--card); border:1.5px solid var(--line-strong);
+    border-radius:10px; padding:6px; box-shadow:0 8px 26px rgba(0,0,0,.18);
+    min-width:150px;
+  }
+  .theme-menu.open{ display:block; }
+  .theme-menu button{
+    display:flex; align-items:center; gap:8px; width:100%;
+    padding:6px 8px; margin:0; border:none; border-radius:7px;
+    background:none; color:var(--ink); font-size:12.5px; text-align:left; cursor:pointer;
+  }
+  .theme-menu button:hover{ background:var(--card-2); }
+  .theme-menu button.on{ background:var(--accent-tint); color:var(--accent-dark); font-weight:700; }
+  .theme-dot{ width:14px; height:14px; border-radius:50%; border:1px solid rgba(0,0,0,.18); flex:none; }
 </style>
 <!-- Web edition layer. Loaded after the built-in styles so its
      responsive rules win without !important everywhere. -->
@@ -1709,7 +1819,7 @@
   <div class="activation-card">
     <button type="button" class="activation-close" id="activationClose" aria-label="Close">&#10005;</button>
     <div class="activation-logo"><img src="data:image/png;base64,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" alt=""></div>
-    <h2 data-i18n="activateTitle">Activate ID Picture Layout</h2>
+    <h2 data-i18n="activateTitle">Activate ID SIZER</h2>
     <p class="activation-lead" data-i18n-html="activateLead">You can use the app free to try it &mdash; prints and downloads just carry a &ldquo;DEMO&rdquo; watermark. Enter the activation code that came with your purchase. Web HTTP and standalone IDPS codes both work here, and your seller can extend them.</p>
     <label class="activation-label" for="activationInput" data-i18n="activateLabel">Activation code</label>
     <input type="text" id="activationInput" class="activation-input" placeholder="HTTP-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" maxlength="24">
@@ -1789,7 +1899,7 @@
             <div class="attire-target-row"><button type="button" class="attire-target brush-target active" data-target="person" title="Person"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="3.5"/><path d="M5 20c0-3.9 3.1-6.5 7-6.5s7 2.6 7 6.5"/></svg><span>Person</span></button><button type="button" class="attire-target brush-target" data-target="attire" title="Outfit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3l5 3 5-3 3 6-3 1.5V21H7V9.5L4 8z"/><path d="M12 6v14"/><path d="M10.5 9.5h3l-1.5 4z"/></svg><span>Outfit</span></button></div>
             <label class="pf-label">Brush size <span id="attireEraseVal" style="color:var(--muted)">40</span></label>
             <input type="range" id="attireEraseBrush" min="10" max="200" value="40" class="attire-range">
-            <p class="attire-hint" style="text-align:left;margin:6px 0 0;" data-i18n="eraseApplyHint">Erase removes; Restore brings it back. Choose <b>Person</b> or <b>Outfit</b> above &mdash; edits only apply to your photo when you tap Apply.</p>
+            <p class="attire-hint" style="text-align:left;margin:6px 0 0;">Erase removes; Restore brings it back. Choose <b>Person</b> or <b>Outfit</b> above &mdash; edits only apply to your photo when you tap Apply.</p>
           </div>
           <div class="attire-set" id="setCrop" style="display:none;">
             <label class="pf-label">Crop shape</label>
@@ -1808,7 +1918,7 @@
               </div>
             </div>
             <p class="attire-hint" style="text-align:left;margin:0 0 8px;">Drag the box or its edges. The 3&times;3 grid helps you centre the face. Then Apply crop.</p>
-            <div class="attire-btn-grid" data-i18n="attireBtnGrid">
+            <div class="attire-btn-grid">
               <button type="button" class="btn-primary btn-small" id="attireCropApply" style="margin:0;">Apply crop</button>
               <button type="button" class="btn-secondary btn-small" id="attireCropReset" style="margin:0;">Reset box</button>
             </div>
@@ -1827,7 +1937,7 @@
         </div>
       </div>
     </div>
-    <div class="attire-foot" data-i18n="attireFoot">
+    <div class="attire-foot">
       <button type="button" class="btn-secondary" id="attireExportBtn" style="margin:0;" data-i18n="attireExport">Export PNG</button>
       <div style="flex:1"></div>
       <button type="button" class="btn-secondary" id="attireCancel" style="margin:0;" data-i18n="cancel">Cancel</button>
@@ -1852,7 +1962,6 @@
         <option value="tl">Tagalog</option>
         <option value="id">Bahasa Indonesia</option>
         <option value="ceb">Bisaya</option>
-        <option value="ko">Korean</option>
       </select>
       <button type="button" id="themeToggle" class="header-icon-btn" title="Light / Dark" aria-label="Toggle dark mode">
         <svg id="themeIconMoon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
@@ -1925,7 +2034,7 @@
           <input type="number" id="polQty" min="1" max="60" value="4">
         </div>
         <div class="form-row">
-          <label for="polFrameColor" data-i18n="polFrameColorLabel">Frame colour</label>
+          <label for="polFrameColor">Frame colour</label>
           <select id="polFrameColor">
             <option value="#ffffff">White</option>
             <option value="#111111">Black</option>
@@ -1933,13 +2042,13 @@
           </select>
         </div>
         <div class="form-row">
-          <label for="polCaption" data-i18n="polCaption">Caption</label>
+          <label for="polCaption">Caption</label>
           <input type="text" id="polCaption" maxlength="40" placeholder="optional - printed on the strip" autocomplete="off">
         </div>
 
         <h3 class="custom-section-label">Paper / canvas</h3>
         <div class="form-row">
-          <label for="polCanvasSize" data-i18n="polaroidCanvasLabel">Canvas size</label>
+          <label for="polCanvasSize">Canvas size</label>
           <select id="polCanvasSize">
             <option value="4x6">4 x 6 in</option>
             <option value="5x7">5 x 7 in</option>
@@ -1947,6 +2056,10 @@
             <option value="a4">8.27 x 11.69 in (A4)</option>
             <option value="custom">Custom size</option>
           </select>
+        </div>
+        <div class="form-row">
+          <label for="polLandscape">Orientation</label>
+          <label class="landscape-opt"><input type="checkbox" id="polLandscape"> Landscape</label>
         </div>
         <div class="form-row" id="polCanvasDimsRow" style="display:none;">
           <label>Canvas size (in)</label>
@@ -1959,7 +2072,7 @@
         </div>
 
         <div class="custom-actions">
-          <button type="button" class="btn-primary" id="polApplyBtn" data-i18n="polApply">Use this polaroid set</button>
+          <button type="button" class="btn-primary" id="polApplyBtn">Use this polaroid set</button>
         </div>
         <div class="custom-error" id="polError"></div>
       </div>
@@ -1985,8 +2098,12 @@
             <option value="custom">Custom size</option>
           </select>
         </div>
+        <div class="form-row">
+          <label for="customLandscape">Orientation</label>
+          <label class="landscape-opt"><input type="checkbox" id="customLandscape"> Landscape</label>
+        </div>
         <div class="form-row" id="customCanvasDimsRow" style="display:none;">
-          <label data-i18n="customDimensions">Dimensions</label>
+          <label>Dimensions</label>
           <div class="dim-pair">
             <input type="number" id="customCanvasW" min="1" step="0.1" value="5" aria-label="Canvas width in inches">
             <span>in &times;</span>
@@ -2012,9 +2129,9 @@
         <div class="custom-error" id="customError"></div>
 
         <div id="savedLayoutsSection" style="display:none;margin-top:18px;">
-          <h3 class="custom-section-label" data-i18n="savedLayouts">My saved layouts</h3>
+          <h3 class="custom-section-label">My saved layouts</h3>
           <div class="set-list" id="savedLayoutsList"></div>
-          <p class="hint" data-i18n="pickLayoutHint">Pick a layout, then add a photo.</p>
+          <p class="hint">Pick a layout, then add a photo.</p>
         </div>
       </div>
     </div>
@@ -2112,7 +2229,7 @@
           <div class="custom-error" id="b2bError"></div>
         </div>
 
-        <div id="dropzone" data-i18n="dropzone">
+        <div id="dropzone">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15.5V18a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2.5"/><path d="M12 15.5V3.5"/><path d="M7.5 8 12 3.5 16.5 8"/></svg>
           Drag &amp; drop your photo here
           <small>or click to choose a file &mdash; JPG, PNG, HEIC</small>
@@ -2160,7 +2277,7 @@
             </div>
             <!-- background colour: opens from the middle icon -->
             <div id="bgColorPanel" style="display:none;margin:0 0 10px;padding:10px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--card);">
-              <p class="group-note" style="margin:0 0 8px;" data-i18n="bgColour">Background colour</p>
+              <p class="group-note" style="margin:0 0 8px;">Background colour</p>
               <div class="swatch-row" id="bgColorSwatches">
                 <button type="button" class="swatch-btn active" data-bgfill="#ffffff" style="background:#ffffff;" title="White"></button>
                 <input type="color" id="customBgColor" value="#ffffff" title="Pick a colour" style="width:28px;height:28px;padding:0;border:2px solid var(--line-strong);border-radius:50%;cursor:pointer;background:none;">
@@ -2169,14 +2286,14 @@
             <div class="bg-tune" id="bgTune" style="display:none;">
               <label for="bgStrength">Background cleanup</label>
               <input type="range" id="bgStrength" min="0" max="100" value="40">
-              <div class="bg-tune-scale"><span data-i18n="keepMore">keep more</span><span data-i18n="removeMore">remove more</span></div>
+              <div class="bg-tune-scale"><span>keep more</span><span>remove more</span></div>
             </div>
             <div class="bg-progress" id="bgProgress" style="display:none;"></div>
             <div class="bg-error" id="bgError" style="display:none;"></div>
             <details class="bg-fallback">
               <summary>Not clean enough?</summary>
-              <p data-i18n="photoroomHint">Try PhotoRoom online, then upload the result here.</p>
-              <a class="photoroom-btn" id="photoroomLink" href="https://www.photoroom.com/tools/background-remover" target="_blank" rel="noopener noreferrer" data-i18n="openPhotoRoom">Open PhotoRoom Background Remover &#8599;</a>
+              <p>Try PhotoRoom online, then upload the result here.</p>
+              <a class="photoroom-btn" id="photoroomLink" href="https://www.photoroom.com/tools/background-remover" target="_blank" rel="noopener noreferrer">Open PhotoRoom Background Remover &#8599;</a>
             </details>
           </div>
 
@@ -2184,7 +2301,7 @@
           <div class="group" id="nameTagGroup">
             <h3 class="group-title">
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3.5" width="12" height="9" rx="1.2"/><path d="M2 10h12"/><circle cx="6" cy="7" r="1.4"/></svg>
-              <span data-i18n="nameTagLabel">ID name tag</span> <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted);" data-i18n="optional">optional</span>
+              ID name tag <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted);">optional</span>
             </h3>
             <p class="group-note">Prints a white name bar at the bottom. Leave blank for none.</p>
             <input type="text" id="nameTagText" class="nametag-input" placeholder="Type your name here" maxlength="48" autocomplete="off">
@@ -2200,9 +2317,9 @@
                   <span id="nameTagChipText">Type your name here</span>
                 </div>
               </div>
-              <div class="nametag-btn-line" data-i18n="nametagBtnLine">
-                <button type="button" class="btn-secondary btn-small nametag-btn" id="nameTagAllBtn" data-i18n="nameTagAll">Tag all photos</button>
-                <button type="button" class="btn-secondary btn-small nametag-btn" id="nameTagClearBtn" data-i18n="nameTagClear">Clear all</button>
+              <div class="nametag-btn-line">
+                <button type="button" class="btn-secondary btn-small nametag-btn" id="nameTagAllBtn">Tag all photos</button>
+                <button type="button" class="btn-secondary btn-small nametag-btn" id="nameTagClearBtn">Clear all</button>
               </div>
               <div class="nametag-count-note" id="nameTagCountNote"></div>
             </div>
@@ -2224,7 +2341,7 @@
                     <canvas id="brushCanvas" class="brush-canvas"></canvas>
                     <div class="nametag-band" id="nameTagBand"><span id="nameTagBandText"></span></div>
                   </div>
-                  <div class="crop-history-btns" data-i18n="cropHistoryBtns">
+                  <div class="crop-history-btns">
                     <button type="button" id="undoBtn" title="Undo" disabled>&#8630;</button>
                     <button type="button" id="redoBtn" title="Redo" disabled>&#8631;</button>
                   </div>
@@ -2255,21 +2372,21 @@
           <div class="group" id="polaroidLookGroup" style="display:none;">
             <h3 class="group-title">
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11"/><path d="M2.5 8h11"/></svg>
-              <span data-i18n="polaroidLook">Polaroid look</span>
+              <span>Polaroid look</span>
             </h3>
             <div class="pol-filter-box">
               <div class="pol-filter-row" id="polFilterRow">
-                <button type="button" class="pol-chip active" data-filter="none" data-i18n="polOriginal">Original</button>
-                <button type="button" class="pol-chip" data-filter="bw" data-i18n="polBW">B &amp; W</button>
-                <button type="button" class="pol-chip" data-filter="sepia" data-i18n="polSepia">Sepia</button>
-                <button type="button" class="pol-chip" data-filter="vintage" data-i18n="polVintage">Vintage</button>
-                <button type="button" class="pol-chip" data-filter="retro" data-i18n="polRetro">Retro</button>
-                <button type="button" class="pol-chip" data-filter="seventies" data-i18n="pol70s">70s</button>
-                <button type="button" class="pol-chip" data-filter="kodak" data-i18n="polKodak">Kodak</button>
-                <button type="button" class="pol-chip" data-filter="fade" data-i18n="polFaded">Faded</button>
-                <button type="button" class="pol-chip" data-filter="warm" data-i18n="polWarm">Warm</button>
-                <button type="button" class="pol-chip" data-filter="cool" data-i18n="polCool">Cool</button>
-                <button type="button" class="pol-chip" data-filter="vivid" data-i18n="polVivid">Vivid</button>
+                <button type="button" class="pol-chip active" data-filter="none">Original</button>
+                <button type="button" class="pol-chip" data-filter="bw">B &amp; W</button>
+                <button type="button" class="pol-chip" data-filter="sepia">Sepia</button>
+                <button type="button" class="pol-chip" data-filter="vintage">Vintage</button>
+                <button type="button" class="pol-chip" data-filter="retro">Retro</button>
+                <button type="button" class="pol-chip" data-filter="seventies">70s</button>
+                <button type="button" class="pol-chip" data-filter="kodak">Kodak</button>
+                <button type="button" class="pol-chip" data-filter="fade">Faded</button>
+                <button type="button" class="pol-chip" data-filter="warm">Warm</button>
+                <button type="button" class="pol-chip" data-filter="cool">Cool</button>
+                <button type="button" class="pol-chip" data-filter="vivid">Vivid</button>
               </div>
             </div>
 
@@ -2300,10 +2417,10 @@
           <div class="group" id="peopleGroup">
             <h3 class="group-title">
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><circle cx="8" cy="5" r="3"/><path d="M2.5 14.2a5.5 5.5 0 0 1 11 0"/></svg>
-              <span data-i18n="savedPhotosTitle">Saved photos</span>
+              <span>Saved photos</span>
             </h3>
             <div id="savedPeopleGallery" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;"></div>
-            <p class="group-note" id="savedPeopleEmpty" style="margin-top:8px;" data-i18n="noSavedPhotos">No saved photos yet.</p>
+            <p class="group-note" id="savedPeopleEmpty" style="margin-top:8px;">No saved photos yet.</p>
           </div>
 
           <div class="group group-erase" id="eraseGroup">
@@ -2311,7 +2428,7 @@
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.4 2.2 13.8 6.6 7.6 12.8H3.2l-.9-.9z"/><path d="M6.3 5.3 10.7 9.7"/><path d="M7.6 12.8h6.2"/></svg>
               <span data-i18n="eraseArea">Erase excess areas</span>
             </h3>
-            <p class="group-note" data-i18n="eraseNote"><strong>Erase</strong> removes leftover background. <strong>Restore</strong> paints it back.</p>
+            <p class="group-note"><strong>Erase</strong> removes leftover background. <strong>Restore</strong> paints it back.</p>
             <div class="erase-row">
               <button type="button" class="tool-icon-btn erase-btn" id="brushBtn" title="Erase brush — rub background away" aria-label="Erase brush">
                 <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -2386,21 +2503,25 @@
               <option value="custom">Custom</option>
             </select>
           </div>
+          <div class="form-row">
+            <label for="multiLandscape">Orientation</label>
+            <label class="landscape-opt"><input type="checkbox" id="multiLandscape"> Landscape</label>
+          </div>
           <div class="form-row" id="multiCustomRow" style="display:none;">
             <label>Dimensions</label>
             <div class="dim-pair"><input type="number" id="multiW" min="1" step="0.1" value="8.5"><span>in &times;</span><input type="number" id="multiH" min="1" step="0.1" value="13"><span>in</span></div>
           </div>
-          <div class="multi-drop" id="multiDrop" style="margin-top:12px;" data-i18n="multiDrop">Drop 1&ndash;50 photos here<br><small style="font-weight:500;">or click to choose files</small></div>
+          <div class="multi-drop" id="multiDrop" style="margin-top:12px;">Drop 1&ndash;50 photos here<br><small style="font-weight:500;">or click to choose files</small></div>
           <input type="file" id="multiInput" accept="image/*" multiple style="display:none;">
-          <label class="pf-label" style="margin-top:12px;" data-i18n="multiSpacingLabel">Spacing between photos <span id="multiGapVal" style="color:var(--muted)">30%</span></label>
+          <label class="pf-label" style="margin-top:12px;">Spacing between photos <span id="multiGapVal" style="color:var(--muted)">30%</span></label>
           <input type="range" id="multiGap" min="0" max="100" value="30" class="attire-range">
-          <label class="pf-label" style="margin-top:12px;" data-i18n="multiSizeLabel">Photo size <span id="multiSizeVal" style="color:var(--muted)">100%</span></label>
+          <label class="pf-label" style="margin-top:12px;">Photo size <span id="multiSizeVal" style="color:var(--muted)">100%</span></label>
           <input type="range" id="multiSize" min="20" max="100" value="100" class="attire-range">
-          <p class="attire-hint" style="text-align:left;margin:6px 0 0;" data-i18n="multiHint">Drag photos to move. <b>Re-pack</b> to auto-fill.</p>
+          <p class="attire-hint" style="text-align:left;margin:6px 0 0;">Drag photos to move. <b>Re-pack</b> to auto-fill.</p>
           <div id="multiThumbs" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;"></div>
           <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
-            <button type="button" class="btn-secondary btn-small" id="multiRepack" style="margin:0;width:auto;padding:8px 14px;" data-i18n="multiRepack">Re-pack (auto-fill)</button>
-            <button type="button" class="btn-secondary btn-small" id="multiClear" style="margin:0;width:auto;padding:8px 14px;" data-i18n="multiClear">Clear all</button>
+            <button type="button" class="btn-secondary btn-small" id="multiRepack" style="margin:0;width:auto;padding:8px 14px;">Re-pack (auto-fill)</button>
+            <button type="button" class="btn-secondary btn-small" id="multiClear" style="margin:0;width:auto;padding:8px 14px;">Clear all</button>
             <span id="multiCount" style="font-size:12px;color:var(--muted);"></span>
           </div>
         </div>
@@ -2428,7 +2549,7 @@
         </div>
 
         <div id="previewWrap">
-          <div class="empty-note" id="emptyNote" data-i18n="emptyNote">Your layout will appear here once you add a photo in step&nbsp;2.</div>
+          <div class="empty-note" id="emptyNote">Your layout will appear here once you add a photo in step&nbsp;2.</div>
           <canvas id="pageCanvas" width="1000" height="1400" style="display:none;" tabindex="0" title="Double-click a cell to put a different person\'s photo there. You can also drag a photo file onto a cell. Right-click a cell to undo."></canvas>
         </div>
         <div class="combine-hint" id="combineHint" style="display:none;font-size:12px;color:var(--muted);margin:6px 2px 0;">
@@ -2500,23 +2621,69 @@
     var moon=document.getElementById('themeIconMoon'), sun=document.getElementById('themeIconSun');
     if(moon&&sun){ moon.style.display=isDark?'none':''; sun.style.display=isDark?'':'none'; }
   }
+  // Every theme except the default light one is just a data-theme value.
+  var IDPL_THEMES = [
+    { id:'light',    name:'Light',    dot:'#ffffff' },
+    { id:'dark',     name:'Dark',     dot:'#1e242d' },
+    { id:'rose',     name:'Rose',     dot:'#f8d0de' },
+    { id:'sky',      name:'Sky',      dot:'#cde2fa' },
+    { id:'matcha',   name:'Matcha',   dot:'#cbdc9a' },
+    { id:'lavender', name:'Lavender', dot:'#ddd0f6' },
+    { id:'graytone',  name:'Gray tone',  dot:'#cfcfcf' },
+    { id:'tealorange', name:'Teal and orange', dot:'#f7c9a0' }
+  ];
   function applyTheme(t){
-    if(t==='dark') docEl.setAttribute('data-theme','dark');
-    else docEl.removeAttribute('data-theme');
+    var known = false;
+    for(var i = 0; i < IDPL_THEMES.length; i++){ if(IDPL_THEMES[i].id === t) known = true; }
+    if(!known) t = 'light';
+    if(t === 'light') docEl.removeAttribute('data-theme');
+    else docEl.setAttribute('data-theme', t);
     paintThemeIcon();
   }
   var theme; try{ theme = localStorage.getItem('idpl_theme') || 'light'; }catch(e){ theme='light'; }
   applyTheme(theme);
+  // The theme button now opens a small palette menu instead of just
+  // flipping light/dark, so the header gains no extra clutter.
   var tbtn=document.getElementById('themeToggle');
-  if(tbtn) tbtn.addEventListener('click', function(){
-    theme = (docEl.getAttribute('data-theme')==='dark') ? 'light':'dark';
-    try{ localStorage.setItem('idpl_theme', theme); }catch(e){}
-    applyTheme(theme);
-  });
+  if(tbtn){
+    var menu = document.createElement('div');
+    menu.className = 'theme-menu';
+    menu.id = 'themeMenu';
+    document.body.appendChild(menu);
 
-  var DICT = {"tl": {"tagline": "Pumili ng set &rarr; idagdag ang larawan &rarr; i-print. Ang magkasukat na larawan ay magkadikit para isang tuwid na gupit lang ang naghihiwalay.", "step1": "Pumili ng set", "step1sub": "Piliin kung ilang larawan at anong sukat ang ilalagay sa sheet.", "step2": "Idagdag at i-edit ang larawan", "step3": "Handa nang i-print na sheet", "removeBg": "Alisin ang background", "removeBgTitle": "Alisin ang background", "applyBgColor": "Ilapat ang kulay ng background", "whitenBg": "Gawing puti ang background", "frameThePhoto": "I-frame ang larawan", "colourLight": "Kulay at liwanag", "eraseArea": "Burahin ang sobrang bahagi", "bgColour": "Kulay ng background", "updateLayout": "I-tag lahat", "chooseDifferent": "Pumili ng ibang larawan", "arrange": "Ayusin ang mga larawan", "resetLayout": "Ibalik sa auto layout", "printSheet": "I-print ang sheet", "download": "I-download bilang larawan", "useCustom": "Gamitin ang custom set na ito", "saveLayout": "I-save ang layout para mamaya", "size1": "Sukat 1", "size2": "Sukat 2", "trialPill": "Trial &mdash; may watermark ang print", "enterCode": "Ilagay ang activation code", "activated": "Activated na", "activateTitle": "I-activate ang ID Picture Layout", "activateLead": "Puwede mong subukan ang app nang libre &mdash; may &ldquo;DEMO&rdquo; watermark lang sa print at download. Ilagay ang activation code na kasama ng binili mo para tanggalin ito nang tuluyan. Isang beses mo lang ito gagawin sa computer na ito.", "activateLabel": "Activation code", "activateBtn": "I-activate", "activateFoot": "Isang code, isang computer. Nawala o kailangan ng bago? Kontakin kung saan mo binili ang app.", "addSize": "Magdagdag ng sukat", "photoSizes": "Mga sukat ng larawan", "paperCanvas": "Papel / canvas", "printNote": "Para tama ang sukat ng print, sa print dialog i-set:<br>&bull; <strong>Paper size</strong> = kapareho ng sukat ng canvas mo <span id=\"printPaperHint\"></span><br>&bull; <strong>Scale</strong> = 100% / Actual size (hindi &ldquo;Fit to page&rdquo;)<br>&bull; <strong>Margins</strong> = None<br>Kung mas malaki ang papel kaysa canvas, liliitan o ise-center ng printer ang sheet."}, "id": {"tagline": "Pilih set &rarr; tambahkan foto &rarr; cetak. Foto berukuran sama menempel rapat agar satu potongan lurus memisahkannya.", "step1": "Pilih set", "step1sub": "Pilih berapa banyak foto dan ukuran apa untuk lembar cetak.", "step2": "Tambah &amp; edit foto", "step3": "Lembar siap cetak", "removeBg": "Hapus latar belakang", "removeBgTitle": "Hapus latar belakang", "applyBgColor": "Terapkan warna latar", "whitenBg": "Putihkan latar belakang", "frameThePhoto": "Atur bingkai foto", "colourLight": "Warna &amp; cahaya", "eraseArea": "Hapus bagian berlebih", "bgColour": "Warna latar belakang", "updateLayout": "Tandai semua", "chooseDifferent": "Pilih foto lain", "arrange": "Atur foto", "resetLayout": "Kembali ke tata letak otomatis", "printSheet": "Cetak lembar", "download": "Unduh sebagai gambar", "useCustom": "Gunakan set kustom ini", "saveLayout": "Simpan tata letak untuk nanti", "size1": "Ukuran 1", "size2": "Ukuran 2", "trialPill": "Uji coba &mdash; cetakan diberi watermark", "enterCode": "Masukkan kode aktivasi", "activated": "Teraktivasi", "activateTitle": "Aktivasi ID Picture Layout", "activateLead": "Anda bisa mencoba aplikasi gratis &mdash; cetakan dan unduhan hanya diberi watermark &ldquo;DEMO&rdquo;. Masukkan kode aktivasi dari pembelian Anda untuk menghapusnya permanen. Cukup sekali di komputer ini.", "activateLabel": "Kode aktivasi", "activateBtn": "Aktivasi", "activateFoot": "Satu kode untuk satu komputer. Kehilangan kode atau butuh yang baru? Hubungi tempat Anda membeli aplikasi.", "addSize": "Tambah ukuran", "photoSizes": "Ukuran foto", "paperCanvas": "Kertas / kanvas", "printNote": "Untuk cetak ukuran asli, di dialog cetak atur:<br>&bull; <strong>Ukuran kertas</strong> = sama dengan ukuran kanvas Anda <span id=\"printPaperHint\"></span><br>&bull; <strong>Skala</strong> = 100% / Ukuran asli (bukan &ldquo;Fit to page&rdquo;)<br>&bull; <strong>Margin</strong> = None<br>Jika kertas lebih besar dari kanvas, printer akan mengecilkan atau memusatkan lembar."}};
+    function paintMenu(){
+      var cur = docEl.getAttribute('data-theme') || 'light';
+      menu.innerHTML = '';
+      IDPL_THEMES.forEach(function(t){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = (t.id === cur) ? 'on' : '';
+        b.innerHTML = '<span class="theme-dot" style="background:' + t.dot + '"></span>' + t.name;
+        b.addEventListener('click', function(){
+          theme = t.id;
+          try{ localStorage.setItem('idpl_theme', theme); }catch(e){}
+          applyTheme(theme);
+          menu.classList.remove('open');
+          if(typeof renderPage === 'function'){ try{ renderPage(); }catch(e){} }
+        });
+        menu.appendChild(b);
+      });
+    }
+    tbtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      if(menu.classList.contains('open')){ menu.classList.remove('open'); return; }
+      paintMenu();
+      var r = tbtn.getBoundingClientRect();
+      menu.style.top  = (r.bottom + window.scrollY + 6) + 'px';
+      menu.style.left = Math.max(8, r.right + window.scrollX - 150) + 'px';
+      menu.classList.add('open');
+    });
+    document.addEventListener('click', function(){ menu.classList.remove('open'); });
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape') menu.classList.remove('open'); });
+  }
+
+  var DICT = {"tl": {"tagline": "Pumili ng set &rarr; idagdag ang larawan &rarr; i-print. Ang magkasukat na larawan ay magkadikit para isang tuwid na gupit lang ang naghihiwalay.", "step1": "Pumili ng set", "step1sub": "Piliin kung ilang larawan at anong sukat ang ilalagay sa sheet.", "step2": "Idagdag at i-edit ang larawan", "step3": "Handa nang i-print na sheet", "removeBg": "Alisin ang background", "removeBgTitle": "Alisin ang background", "applyBgColor": "Ilapat ang kulay ng background", "whitenBg": "Gawing puti ang background", "frameThePhoto": "I-frame ang larawan", "colourLight": "Kulay at liwanag", "eraseArea": "Burahin ang sobrang bahagi", "bgColour": "Kulay ng background", "updateLayout": "I-tag lahat", "chooseDifferent": "Pumili ng ibang larawan", "arrange": "Ayusin ang mga larawan", "resetLayout": "Ibalik sa auto layout", "printSheet": "I-print ang sheet", "download": "I-download bilang larawan", "useCustom": "Gamitin ang custom set na ito", "saveLayout": "I-save ang layout para mamaya", "size1": "Sukat 1", "size2": "Sukat 2", "trialPill": "Trial &mdash; may watermark ang print", "enterCode": "Ilagay ang activation code", "activated": "Activated na", "activateTitle": "I-activate ang ID SIZER", "activateLead": "Puwede mong subukan ang app nang libre &mdash; may &ldquo;DEMO&rdquo; watermark lang sa print at download. Ilagay ang activation code na kasama ng binili mo para tanggalin ito nang tuluyan. Isang beses mo lang ito gagawin sa computer na ito.", "activateLabel": "Activation code", "activateBtn": "I-activate", "activateFoot": "Isang code, isang computer. Nawala o kailangan ng bago? Kontakin kung saan mo binili ang app.", "addSize": "Magdagdag ng sukat", "photoSizes": "Mga sukat ng larawan", "paperCanvas": "Papel / canvas", "printNote": "Para tama ang sukat ng print, sa print dialog i-set:<br>&bull; <strong>Paper size</strong> = kapareho ng sukat ng canvas mo <span id=\"printPaperHint\"></span><br>&bull; <strong>Scale</strong> = 100% / Actual size (hindi &ldquo;Fit to page&rdquo;)<br>&bull; <strong>Margins</strong> = None<br>Kung mas malaki ang papel kaysa canvas, liliitan o ise-center ng printer ang sheet."}, "id": {"tagline": "Pilih set &rarr; tambahkan foto &rarr; cetak. Foto berukuran sama menempel rapat agar satu potongan lurus memisahkannya.", "step1": "Pilih set", "step1sub": "Pilih berapa banyak foto dan ukuran apa untuk lembar cetak.", "step2": "Tambah &amp; edit foto", "step3": "Lembar siap cetak", "removeBg": "Hapus latar belakang", "removeBgTitle": "Hapus latar belakang", "applyBgColor": "Terapkan warna latar", "whitenBg": "Putihkan latar belakang", "frameThePhoto": "Atur bingkai foto", "colourLight": "Warna &amp; cahaya", "eraseArea": "Hapus bagian berlebih", "bgColour": "Warna latar belakang", "updateLayout": "Tandai semua", "chooseDifferent": "Pilih foto lain", "arrange": "Atur foto", "resetLayout": "Kembali ke tata letak otomatis", "printSheet": "Cetak lembar", "download": "Unduh sebagai gambar", "useCustom": "Gunakan set kustom ini", "saveLayout": "Simpan tata letak untuk nanti", "size1": "Ukuran 1", "size2": "Ukuran 2", "trialPill": "Uji coba &mdash; cetakan diberi watermark", "enterCode": "Masukkan kode aktivasi", "activated": "Teraktivasi", "activateTitle": "Aktivasi ID SIZER", "activateLead": "Anda bisa mencoba aplikasi gratis &mdash; cetakan dan unduhan hanya diberi watermark &ldquo;DEMO&rdquo;. Masukkan kode aktivasi dari pembelian Anda untuk menghapusnya permanen. Cukup sekali di komputer ini.", "activateLabel": "Kode aktivasi", "activateBtn": "Aktivasi", "activateFoot": "Satu kode untuk satu komputer. Kehilangan kode atau butuh yang baru? Hubungi tempat Anda membeli aplikasi.", "addSize": "Tambah ukuran", "photoSizes": "Ukuran foto", "paperCanvas": "Kertas / kanvas", "printNote": "Untuk cetak ukuran asli, di dialog cetak atur:<br>&bull; <strong>Ukuran kertas</strong> = sama dengan ukuran kanvas Anda <span id=\"printPaperHint\"></span><br>&bull; <strong>Skala</strong> = 100% / Ukuran asli (bukan &ldquo;Fit to page&rdquo;)<br>&bull; <strong>Margin</strong> = None<br>Jika kertas lebih besar dari kanvas, printer akan mengecilkan atau memusatkan lembar."}};
   DICT.ceb = {"tagline": "Pagpili ug set &rarr; idugang ang litrato &rarr; i-print. Ang parehas ug gidak-on nga mga litrato magtapad aron usa ra ka tul-id nga gupit ang mag-bulag niini.", "step1": "Pagpili ug set", "step1sub": "Pilia pila ka litrato ug unsang gidak-on ang isulod sa sheet.", "step2": "Idugang ug i-edit ang litrato", "step3": "Andam na nga sheet para i-print", "removeBg": "Tangtanga ang background", "removeBgTitle": "Tangtanga ang background", "applyBgColor": "I-apply ang kolor sa background", "whitenBg": "Paputiha ang background", "frameThePhoto": "I-frame ang litrato", "colourLight": "Kolor ug kahayag", "eraseArea": "Papasa ang sobra nga bahin", "bgColour": "Kolor sa background", "updateLayout": "I-tag lahat", "chooseDifferent": "Pagpili ug laing litrato", "arrange": "Ihan-ay ang mga litrato", "resetLayout": "Ibalik sa auto layout", "printSheet": "I-print ang sheet", "download": "I-download isip litrato", "useCustom": "Gamita kining custom nga set", "saveLayout": "I-save ang layout para unya", "size1": "Gidak-on 1", "size2": "Gidak-on 2", "trialPill": "Trial &mdash; naay watermark ang print", "enterCode": "Isulod ang activation code", "activated": "Activated na", "activateTitle": "I-activate ang app", "activateLead": "Puwede nimo sulayan ang app nga libre &mdash; naay &ldquo;DEMO&rdquo; watermark lang sa print ug download. Isulod ang activation code nga kauban sa imong pagpalit aron matangtang kini sa hingpit. Kausa ra nimo kini buhaton sa kini nga kompyuter.", "activateLabel": "Activation code", "activateBtn": "I-activate", "activateFoot": "Usa ka code, usa ka kompyuter. Nawala o nagkinahanglan ug bag-o? Kontaka kung asa nimo gipalit ang app.", "addSize": "Pagdugang ug gidak-on", "photoSizes": "Mga gidak-on sa litrato", "paperCanvas": "Papel / canvas", "printNote": "Para husto ang gidak-on sa print, sa print dialog i-set:<br>&bull; <strong>Paper size</strong> = parehas sa gidak-on sa imong canvas <span id=\"printPaperHint\"></span><br>&bull; <strong>Scale</strong> = 100% / Actual size (dili &ldquo;Fit to page&rdquo;)<br>&bull; <strong>Margins</strong> = None<br>Kung mas dako ang papel kay sa canvas, gamayan o i-center sa printer ang sheet.", "formalAttire": "Pormal nga sinina", "addAttire": "Pagdugang ug pormal nga sinina"};
-  DICT.ko = {"tagline": "세트 선택 &rarr; 사진 추가 &rarr; 인쇄. 같은 크기의 사진을 붙여넣어 한 줄의 일정한 컷으로 구분합니다.", "step1": "세트 선택", "step1sub": "시트에 넣을 사진 장수와 크기를 선택하세요.", "step2": "사진 추가 및 편집", "step3": "인쇄 준비 완료", "removeBg": "배경 제거", "removeBgTitle": "배경 제거", "applyBgColor": "배경색 적용", "whitenBg": "배경 흰색으로", "frameThePhoto": "사진 액자", "colourLight": "색상 및 조명", "eraseArea": "여분 영역 지우기", "bgColour": "배경색", "updateLayout": "모두 태그", "chooseDifferent": "다른 사진 선택", "arrange": "사진 정렬", "resetLayout": "자동 레이아웃으로 되돌리기", "printSheet": "시트 인쇄", "download": "이미지로 다운로드", "useCustom": "이 사용자 정의 세트 사용", "saveLayout": "나중을 위해 레이아웃 저장", "size1": "크기 1", "size2": "크기 2", "trialPill": "체험판 &mdash; 인쇄에 워터마크 표시", "enterCode": "활성화 코드 입력", "activated": "활성화됨", "activateTitle": "ID Picture Layout 활성화", "activateLead": "무료로 앱을 사용해보실 수 있습니다 &mdash; 인쇄 및 다운로드에만 &ldquo;DEMO&rdquo; 워터마크가 표시됩니다. 구매 시 포함된 활성화 코드를 입력하면 영구적으로 제거됩니다. 이 컴퓨터에서 한 번만 실행하면 됩니다.", "activateLabel": "활성화 코드", "activateBtn": "활성화", "activateFoot": "하나의 코드, 하나의 컴퓨터. 분실하거나 새 코드가 필요하신가요? 앱을 구입한 곳으로 문의하세요.", "addSize": "크기 추가", "photoSizes": "사진 크기", "paperCanvas": "용지 / 캔버스", "printNote": "인쇄 크기를 정확하게 하려면 인쇄 대화상자에서 설정하세요:<br>&bull; <strong>용지 크기</strong> = 캔버스 크기와 동일 <span id=\"printPaperHint\"></span><br>&bull; <strong>배율</strong> = 100% / 실제 크기 ('페이지에 맞춤' 아님)<br>&bull; <strong>여백</strong> = 없음<br>용지가 캔버스보다 크면 프린터가 시트를 축소하거나 가운데로 정렬합니다.", "formalAttire": "정장", "addAttire": "정장 추가"};
   function lastTextNode(el){ var t=null; el.childNodes.forEach(function(n){ if(n.nodeType===3 && n.nodeValue.trim()) t=n; }); return t; }
   function setText(el, txt){
     var t=lastTextNode(el);
@@ -3137,19 +3304,6 @@
       return c;
     }catch(e){ return null; }
   }
-  function recomputeDeviceId(o){
-    try{
-      var base = o.d || "";
-      var cand = [typeof DEVICE !== 'undefined' ? DEVICE : ""];
-      if(typeof idpl !== 'undefined' && idpl && idpl.deviceId) cand.push(idpl.deviceId);
-      if(typeof deviceHistoryGet === 'function'){ try{ cand = cand.concat(deviceHistoryGet()); }catch(e){} }
-      var i=0, fallback = "";
-      for(var k = 0; k < cand.length; k++){ if(cand[k] && cand[k] !== base){ fallback = cand[k]; break; } }
-      o = o || {};
-      o.d = base || fallback || "";
-      return o;
-    }catch(e){ return o || {}; }
-  }
 
   // The paid flag is NOT a writable global. It is derived, on every read, from
   // the signed activation record, so `IDPL_ACTIVATED = true` typed anywhere
@@ -3191,6 +3345,23 @@
     return v;
   }
   var DEVICE = getDeviceId();
+  // Every id this machine may legitimately be known by. The old builds locked
+  // a code to a fingerprint built from network adapters, which CHANGED when
+  // the PC went offline - that is why activation used to fall back to trial
+  // with no internet. New activations use the stable id; the old one stays in
+  // this list so customers who activated before the fix are still recognised.
+  var DEVICE_LIST = (function(){
+    try{
+      var l = (window.idpl && window.idpl.deviceIds) || null;
+      if(l && l.length) return l.slice();
+    }catch(e){}
+    return [DEVICE];
+  })();
+  function isThisMachine(d){
+    if(!d) return false;
+    for(var i = 0; i < DEVICE_LIST.length; i++){ if(DEVICE_LIST[i] === d) return true; }
+    return false;
+  }
   // The activation server URL, from resources/activation-config.json (via
   // the preload). Empty = server not set up yet -> app runs in offline mode.
   var ACT_URL = "";
@@ -3205,6 +3376,8 @@
   var trialArea= document.getElementById("trialArea");
   var paidPill = document.getElementById("paidPill");
   var pendingHash = "";
+  var tooLongEntered = false;   // the customer typed more than a code's worth
+  var activatedWith = "";   // which machine id the server actually accepted
 
   // ---- activation state ----
   // Cache: { h, d, type:"lifetime"|"sub", exp:<ms epoch, sub only> }
@@ -3270,11 +3443,41 @@
   }
   function closeModal(){ if(gate) gate.classList.remove("show"); }
 
+  // When a code is registered with the server it gets locked to one machine
+  // id. If the customer logs out and types the same code back in on the SAME
+  // PC, we must offer the server that same id again - otherwise it looks like
+  // a second computer and refuses. So we leave a signed note behind.
+  //
+  // The note carries this PC's stable id ("s"). On any other machine that
+  // won't match, and the signature stops anyone hand-writing one, so a copied
+  // note cannot unlock a second PC.
+  var LASTDEV_KEY = "idpl_lastdev_v1";
+  function lastDevSig(o){ return sha256([o.h, o.d, o.s, ACT_SALT, "lastdev"].join("|")); }
+  function rememberDevice(c){
+    try{
+      if(!c || !c.h || !c.d) return;
+      var o = { h: c.h, d: c.d, s: DEVICE };
+      o.sig = lastDevSig(o);
+      storageSet(LASTDEV_KEY, JSON.stringify(o));
+    }catch(e){}
+  }
+  function deviceForCode(hash){
+    try{
+      var o = JSON.parse(storageGet(LASTDEV_KEY) || "null");
+      if(!o || !o.h || !o.d || !o.s || !o.sig) return null;
+      if(o.sig !== lastDevSig(o)) return null;   // forged or edited
+      if(o.s !== DEVICE) return null;            // note is from a different PC
+      if(o.h !== hash) return null;              // a different code
+      return o.d;
+    }catch(e){ return null; }
+  }
+
   // Log out: clear this PC's activation so a code can be entered again.
   (function(){
     var logoutBtn = document.getElementById("logoutBtn");
     if(!logoutBtn) return;
     logoutBtn.onclick = function(){
+      try{ rememberDevice(readAct()); }catch(e){}   // so the code can go back in here
       storageRemove(ACT_KEY);
       var tp = document.getElementById("trialPill");
       if(tp){ var s = tp.querySelector("span[data-i18n], span:last-child"); if(s){ s.setAttribute("data-i18n","trialPill"); s.textContent = "Trial — prints are watermarked"; } }
@@ -3355,12 +3558,14 @@
           if(v.type === "lifetime" || !v.expires){
             // admin upgraded this subscription to Unlimited -> becomes Premium
             c.type = "lifetime"; c.premium = true; delete c.exp;
+            saveAct(c);
+            setActivated(true, { type:"lifetime", premium:true });
           } else {
-            // subscription: refresh expiry from server
+            // admin changed it back to a fixed number of months -> show days again
             c.type = "sub"; c.premium = false; c.exp = v.expires || c.exp;
+            saveAct(c);
+            setActivated(true, { type:"sub", exp:c.exp });
           }
-          saveAct(c);
-          setActivated(true, { type:c.type, exp:c.exp, premium:c.premium });
           if(typeof renderPage === "function"){ try{ renderPage(); }catch(e){} }
         } else {
           markExpired();
@@ -3429,7 +3634,7 @@
     // A subscription (IDPS) code the admin set to Unlimited comes back as lifetime -> Premium.
     var wasSubCode = (formatValue(input.value).indexOf("IDPS") === 0);
     var premium = (type === "lifetime" && wasSubCode);
-    saveAct({ h: pendingHash, d: DEVICE, type: type, exp: exp, premium: premium, code: formatValue(input.value) });
+    saveAct({ h: pendingHash, d: activatedWith || deviceForCode(pendingHash) || DEVICE, type: type, exp: exp, premium: premium, code: formatValue(input.value) });
     errEl.classList.add("ok");
     errEl.textContent = premium
       ? "Premium — unlimited access."
@@ -3485,6 +3690,11 @@
       errEl.textContent = "";
       var pos = input.selectionStart, before = input.value;
       input.value = formatValue(input.value);
+      tooLongEntered = lastInputWasTooLong;
+      if(tooLongEntered){
+        errEl.classList.remove("ok");
+        errEl.textContent = "That is longer than a code. Extra characters were not accepted.";
+      }
       if(pos === before.length) input.setSelectionRange(input.value.length, input.value.length);
     });
   }
@@ -3492,7 +3702,7 @@
 
 
 /* ===== In-app update notice ===== */
-const APP_VERSION = '4.7.5';   // bump this on every release
+const APP_VERSION = '4.8.0';   // bump this on every release
 (function(){
   var base = '';
   try{ if(window.idpl && window.idpl.activationUrl) base = window.idpl.activationUrl; }catch(e){}
@@ -3900,6 +4110,20 @@ addCustomRow(); // start with one row
 customCanvasSize.addEventListener('change', ()=>{
   customCanvasDimsRow.style.display = (customCanvasSize.value === 'custom') ? 'grid' : 'none';
 });
+// Turning the paper sideways rebuilds the sheet straight away. This covers the
+// SETS tabs too, because choosing a set loads its sizes into this same form.
+(function(){
+  var cl = document.getElementById('customLandscape');
+  if(!cl) return;
+  cl.addEventListener('change', function(){
+    // liveRebuild lives inside another function, so rebuild directly here.
+    try{
+      if(activeSet && (activeSet.id === 'custom' || /^set\d+$/.test(activeSet.id))){
+        buildCustomActiveSet();
+      }
+    }catch(e){}
+  });
+})();
 
 function rowDims(rowEl){
   const v = rowEl.querySelector('.row-photo-size').value;
@@ -3922,14 +4146,25 @@ function rowLabel(rowEl){
   return `${w}\u00d7${h}in`;
 }
 
+// Landscape simply turns the chosen paper sideways. A size the user typed
+// that is already wider than tall is left alone, so ticking the box can never
+// make a wide custom sheet taller than it is wide.
+function orientDims(d, checkboxId){
+  try{
+    var cb = document.getElementById(checkboxId);
+    if(cb && cb.checked && d.h > d.w) return { w: d.h, h: d.w };
+  }catch(e){}
+  return d;
+}
+
 function canvasDimsFromForm(){
   const v = customCanvasSize.value;
-  if(v === '4x6') return {w:4, h:6};
-  if(v === '5x7') return {w:5, h:7};
-  if(v === '3r') return {w:3.5, h:5};
-  if(v === 'letter') return {w:8.5, h:11};
-  if(v === 'a4') return {w:8.27, h:11.69};
-  return {w: parseFloat(customCanvasW.value)||5, h: parseFloat(customCanvasH.value)||7};
+  if(v === '4x6') return orientDims({w:4, h:6}, 'customLandscape');
+  if(v === '5x7') return orientDims({w:5, h:7}, 'customLandscape');
+  if(v === '3r') return orientDims({w:3.5, h:5}, 'customLandscape');
+  if(v === 'letter') return orientDims({w:8.5, h:11}, 'customLandscape');
+  if(v === 'a4') return orientDims({w:8.27, h:11.69}, 'customLandscape');
+  return orientDims({w: parseFloat(customCanvasW.value)||5, h: parseFloat(customCanvasH.value)||7}, 'customLandscape');
 }
 
 function computeGrid(qty, cellW, cellH, canvasW, canvasHRemaining, maxColsCap){
@@ -4040,11 +4275,11 @@ const b2bError       = document.getElementById('b2bError');
 
 function b2bCanvasDims(){
   const v = b2bCanvasSize ? b2bCanvasSize.value : 'letter';
-  if(v === '4x6')    return {w:4, h:6};
-  if(v === '5x7')    return {w:5, h:7};
-  if(v === 'letter') return {w:8.5, h:11};
-  if(v === 'a4')     return {w:8.27, h:11.69};
-  return { w: parseFloat(b2bCanvasW.value)||8.5, h: parseFloat(b2bCanvasH.value)||11 };
+  if(v === '4x6')    return orientDims({w:4, h:6}, 'b2bLandscape');
+  if(v === '5x7')    return orientDims({w:5, h:7}, 'b2bLandscape');
+  if(v === 'letter') return orientDims({w:8.5, h:11}, 'b2bLandscape');
+  if(v === 'a4')     return orientDims({w:8.27, h:11.69}, 'b2bLandscape');
+  return orientDims({ w: parseFloat(b2bCanvasW.value)||8.5, h: parseFloat(b2bCanvasH.value)||11 }, 'b2bLandscape');
 }
 
 // Load a dropped/chosen file into the FRONT or BACK slot.
@@ -4254,6 +4489,10 @@ if(b2bCanvasSize){
     b2bCanvasDimsRow.style.display = (b2bCanvasSize.value === 'custom') ? 'grid' : 'none';
     if(activeSet && activeSet.id === 'b2b') buildB2BActiveSet();
   });
+  var b2bLand = document.getElementById('b2bLandscape');
+  if(b2bLand) b2bLand.addEventListener('change', ()=>{
+    if(activeSet && activeSet.id === 'b2b') buildB2BActiveSet();
+  });
 }
 (function(){
   const add = document.getElementById('b2bAddCardBtn');
@@ -4381,11 +4620,11 @@ const polError        = document.getElementById('polError');
 
 function polCanvasDims(){
   const v = polCanvasSize ? polCanvasSize.value : 'letter';
-  if(v === '4x6')    return {w:4, h:6};
-  if(v === '5x7')    return {w:5, h:7};
-  if(v === 'letter') return {w:8.5, h:11};
-  if(v === 'a4')     return {w:8.27, h:11.69};
-  return { w: parseFloat(polCanvasW.value)||8.5, h: parseFloat(polCanvasH.value)||11 };
+  if(v === '4x6')    return orientDims({w:4, h:6}, 'polLandscape');
+  if(v === '5x7')    return orientDims({w:5, h:7}, 'polLandscape');
+  if(v === 'letter') return orientDims({w:8.5, h:11}, 'polLandscape');
+  if(v === 'a4')     return orientDims({w:8.27, h:11.69}, 'polLandscape');
+  return orientDims({ w: parseFloat(polCanvasW.value)||8.5, h: parseFloat(polCanvasH.value)||11 }, 'polLandscape');
 }
 
 // ---------- film filters ----------
@@ -4665,6 +4904,10 @@ function syncPolaroidPreview(){
 if(polCanvasSize){
   polCanvasSize.addEventListener('change', ()=>{
     polCanvasDimsRow.style.display = (polCanvasSize.value === 'custom') ? 'grid' : 'none';
+    if(activeSet && activeSet.id === 'polaroid') buildPolaroidActiveSet();
+  });
+  var polLand = document.getElementById('polLandscape');
+  if(polLand) polLand.addEventListener('change', ()=>{
     if(activeSet && activeSet.id === 'polaroid') buildPolaroidActiveSet();
   });
 }
@@ -5508,8 +5751,6 @@ async function getSegmenter(){
 
     const simd = simdOK();
     // The threaded runtime is the SIMD one, so threads need SIMD as well.
-    // Without this check an older CPU asks for ort-wasm-threaded.wasm, which
-    // is not shipped, and every later retry inherits the dead backend.
     const canThread = simd && (typeof SharedArrayBuffer !== 'undefined');
     const cores = (navigator.hardwareConcurrency || 2);
     const threads = canThread ? Math.max(2, Math.min(8, cores)) : 1;
@@ -7670,7 +7911,7 @@ function updatePrintStyle(wIn, hIn){
         border-radius:0 !important;
         box-shadow:none !important;
       }
-      ${idplCanOutput() ? '' : '#printRoot{display:none !important;} body::after{content:"Enter your activation code in ID Picture Layout to print this sheet.";visibility:visible !important;display:block !important;position:fixed !important;left:0;top:0;padding:24px;font:600 14px Arial,sans-serif;line-height:1.45;color:#c8202b;}'}
+      ${idplCanOutput() ? '' : '#printRoot{display:none !important;} body::after{content:"Enter your activation code in ID SIZER to print this sheet.";visibility:visible !important;display:block !important;position:fixed !important;left:0;top:0;padding:24px;font:600 14px Arial,sans-serif;line-height:1.45;color:#c8202b;}'}
     }
   `;
 }
@@ -8165,14 +8406,14 @@ function multiPoint(e){ var pc=document.getElementById('pageCanvas'); var r=pc.g
 function multiHit(px,py){ for(var i=multiLayout.length-1;i>=0;i--){ var it=multiLayout[i]; if(px>=it.x&&px<=it.x+it.w&&py>=it.y&&py<=it.y+it.h) return it; } return null; }
 function multiCanvasDims(){
   var s=document.getElementById('multiCanvasSel'); var v=s?s.value:'letter';
-  if(v==='letter') return {w:8.5,h:11};
-  if(v==='a4')     return {w:8.27,h:11.69};
-  if(v==='folio')  return {w:8.5,h:13};
-  if(v==='4x6')    return {w:4,h:6};
-  if(v==='5x7')    return {w:5,h:7};
+  if(v==='letter') return orientDims({w:8.5,h:11}, 'multiLandscape');
+  if(v==='a4')     return orientDims({w:8.27,h:11.69}, 'multiLandscape');
+  if(v==='folio')  return orientDims({w:8.5,h:13}, 'multiLandscape');
+  if(v==='4x6')    return orientDims({w:4,h:6}, 'multiLandscape');
+  if(v==='5x7')    return orientDims({w:5,h:7}, 'multiLandscape');
   var mw=parseFloat((document.getElementById('multiW')||{}).value)||8.5;
   var mh=parseFloat((document.getElementById('multiH')||{}).value)||13;
-  return {w:mw,h:mh};
+  return orientDims({w:mw,h:mh}, 'multiLandscape');
 }
 function multiPackPlace(imgs, availW, margin, gap, target){
   var rows=[], row=[], sumAr=0, i;
@@ -8264,6 +8505,8 @@ function enterMultiMode(){
       gap=document.getElementById('multiGap'), clr=document.getElementById('multiClear'), cust=document.getElementById('multiCustomRow'),
       mw=document.getElementById('multiW'), mh=document.getElementById('multiH');
   if(sel) sel.onchange=function(){ if(cust) cust.style.display = sel.value==='custom' ? 'grid' : 'none'; multiManual=false; drawMulti(); };
+  var mLand=document.getElementById('multiLandscape');
+  if(mLand) mLand.onchange=function(){ multiManual=false; drawMulti(); };
   if(mw) mw.oninput=drawMulti;
   if(mh) mh.oninput=drawMulti;
   if(gap) gap.oninput=function(){ var v=document.getElementById('multiGapVal'); if(v) v.textContent=gap.value+'%'; multiManual=false; drawMulti(); };
