@@ -2428,7 +2428,17 @@
         </div>
 
         <div class="web-print-actions">
-          <button class="btn-primary" id="printBtn" data-i18n="printSheet" disabled>
+          <div class="form-row" style="margin-top:12px;">
+          <label for="sheetGapSel">Photo spacing</label>
+          <select id="sheetGapSel">
+            <option value="0" selected>Connected — one cut</option>
+            <option value="0.0625">Spaced — 1/16 in gap</option>
+            <option value="0.125">Spaced — 1/8 in gap</option>
+            <option value="0.25">Spaced — 1/4 in gap</option>
+          </select>
+        </div>
+
+        <button class="btn-primary" id="printBtn" data-i18n="printSheet" disabled>
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.4 6.2V2.4h7.2v3.8"/><path d="M4.4 11.6H2.8a.8.8 0 0 1-.8-.8V7a.8.8 0 0 1 .8-.8h10.4a.8.8 0 0 1 .8.8v3.8a.8.8 0 0 1-.8.8h-1.6"/><path d="M4.4 9.8h7.2v3.8H4.4z"/></svg>
             Print sheet
           </button>
@@ -3925,11 +3935,12 @@ function canvasDimsFromForm(){
 }
 
 function computeGrid(qty, cellW, cellH, canvasW, canvasHRemaining, maxColsCap){
-  let maxCols = Math.max(1, Math.floor(canvasW / cellW));
+  const g = SHEET_GAP_IN || 0;
+  let maxCols = Math.max(1, Math.floor((canvasW + g) / (cellW + g)));
   if(maxColsCap) maxCols = Math.min(maxCols, maxColsCap);
   for(let cols = maxCols; cols >= 1; cols--){
     const rows = Math.ceil(qty / cols);
-    if(rows * cellH <= canvasHRemaining) return {cols, rows};
+    if(rows * (cellH + g) - g <= canvasHRemaining) return {cols, rows};
   }
   return null;
 }
@@ -6596,6 +6607,17 @@ function drawGridLines(x, y, cellW, cellH, cols, rows){
 }
 
 const CUT_SAFETY_IN = 0; // no gap between each photo and its cut line
+let SHEET_GAP_IN = 0;    // optional gap between photos (inches); 0 = connected
+
+// "Photo spacing" control: connected (one shared cut) or spaced (a gap per photo).
+(function(){
+  const sel = document.getElementById('sheetGapSel');
+  if(!sel) return;
+  sel.addEventListener('change', () => {
+    SHEET_GAP_IN = parseFloat(sel.value) || 0;
+    try{ if(typeof renderPage === 'function') renderPage(); }catch(e){}
+  });
+})();
 
 // ---------- ID name tag ----------
 const NAMETAG_BAND_RATIO = 0.16; // white bar height, as a share of the photo height
@@ -7529,14 +7551,16 @@ function drawSection(section, pageWpx){
   const inset = CUT_SAFETY_IN * DPI;
   const photoWpx = Math.max(1, cellWpx - inset*2);
   const photoHpx = Math.max(1, cellHpx - inset*2);
+  const pitchW = cellWpx + SHEET_GAP_IN * DPI;
+  const pitchH = cellHpx + SHEET_GAP_IN * DPI;
 
   let count = 0;
   for(let r=0;r<section.rows;r++){
     for(let c=0;c<section.cols;c++){
       if(count >= limit) break;
       count++;
-      const dx = xpx + c*cellWpx + inset;
-      const dy = ypx + r*cellHpx + inset;
+      const dx = xpx + c*pitchW + inset;
+      const dy = ypx + r*pitchH + inset;
       const slotIndex = photoSlots.length;
       const override = slotPhotos.get(slotIndex);
       if(section.b2b){
@@ -7578,7 +7602,20 @@ function drawSection(section, pageWpx){
       }
     }
   }
-  drawGridLines(xpx, ypx, cellWpx, cellHpx, section.cols, section.rows);
+  if(SHEET_GAP_IN > 0){
+    // Spaced: draw a cut box around each photo instead of a shared grid.
+    ctx.strokeStyle = '#bbbbbb'; ctx.lineWidth = 1;
+    let n2 = 0;
+    for(let r = 0; r < section.rows; r++){
+      for(let c = 0; c < section.cols; c++){
+        if(n2 >= limit) break;
+        n2++;
+        ctx.strokeRect(xpx + c*pitchW + inset, ypx + r*pitchH + inset, photoWpx, photoHpx);
+      }
+    }
+  } else {
+    drawGridLines(xpx, ypx, cellWpx, cellHpx, section.cols, section.rows);
+  }
 }
 
 function updatePrintStyle(wIn, hIn){
