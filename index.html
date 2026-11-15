@@ -794,6 +794,11 @@
     font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer;
   }
   .phone-toggle input{width:15px;height:15px;margin:0;accent-color:var(--accent);cursor:pointer;}
+  .connect-toggle{
+    display:flex;align-items:center;gap:7px;margin:10px 0 0;
+    font-size:12.5px;font-weight:600;color:var(--ink-2);cursor:pointer;
+  }
+  .connect-toggle input{width:15px;height:15px;margin:0;accent-color:var(--accent);cursor:pointer;}
   @media (max-width:520px){
     .phone-card{flex-direction:column;align-items:flex-start;}
     .phone-qr{width:128px;height:128px;}
@@ -2411,6 +2416,9 @@
           <button type="button" class="btn-secondary btn-small arrange-btn" id="arrangeToggle" data-i18n="arrange">Arrange photos</button>
           <button type="button" class="btn-secondary btn-small arrange-btn" id="arrangeReset" data-i18n="resetLayout" disabled>Reset to auto layout</button>
         </div>
+        <label class="connect-toggle" title="When unchecked, a small gap is left between every photo so each can be cut separately.">
+          <input type="checkbox" id="sheetConnected" checked> Connected — photos touch (one cut)
+        </label>
         <div class="arrange-help" id="arrangeHelp" style="display:none;">
           <div class="arrange-undo-row">
             <button type="button" id="arrangeUndo" disabled title="Undo (Ctrl+Z)" aria-label="Undo">&#8630;</button>
@@ -2428,17 +2436,7 @@
         </div>
 
         <div class="web-print-actions">
-          <div class="form-row" style="margin-top:12px;">
-          <label for="sheetGapSel">Photo spacing</label>
-          <select id="sheetGapSel">
-            <option value="0" selected>Connected — one cut</option>
-            <option value="0.0625">Spaced — 1/16 in gap</option>
-            <option value="0.125">Spaced — 1/8 in gap</option>
-            <option value="0.25">Spaced — 1/4 in gap</option>
-          </select>
-        </div>
-
-        <button class="btn-primary" id="printBtn" data-i18n="printSheet" disabled>
+          <button class="btn-primary" id="printBtn" data-i18n="printSheet" disabled>
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.4 6.2V2.4h7.2v3.8"/><path d="M4.4 11.6H2.8a.8.8 0 0 1-.8-.8V7a.8.8 0 0 1 .8-.8h10.4a.8.8 0 0 1 .8.8v3.8a.8.8 0 0 1-.8.8h-1.6"/><path d="M4.4 9.8h7.2v3.8H4.4z"/></svg>
             Print sheet
           </button>
@@ -6609,12 +6607,13 @@ function drawGridLines(x, y, cellW, cellH, cols, rows){
 const CUT_SAFETY_IN = 0; // no gap between each photo and its cut line
 let SHEET_GAP_IN = 0;    // optional gap between photos (inches); 0 = connected
 
-// "Photo spacing" control: connected (one shared cut) or spaced (a gap per photo).
+// "Connected" control: checked = photos touch (one shared cut); unchecked = a
+// small gap is left between every photo so each can be cut separately.
 (function(){
-  const sel = document.getElementById('sheetGapSel');
-  if(!sel) return;
-  sel.addEventListener('change', () => {
-    SHEET_GAP_IN = parseFloat(sel.value) || 0;
+  const chk = document.getElementById('sheetConnected');
+  if(!chk) return;
+  chk.addEventListener('change', () => {
+    SHEET_GAP_IN = chk.checked ? 0 : 0.125;
     try{ if(typeof renderPage === 'function') renderPage(); }catch(e){}
   });
 })();
