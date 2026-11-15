@@ -4687,7 +4687,7 @@ function buildCustomActiveSet(){
   const rowEls = Array.from(customRowsContainer.querySelectorAll('.custom-row'));
 
   const topMargin = 0.35;
-  const gap = 0.3;
+  const gap = SHEET_GAP_IN || 0;   // connected = sizes touch; spaced = a gap
   const bottomMargin = 0.25;
   let yCursor = topMargin;
   let sections = [];
@@ -4772,7 +4772,7 @@ function buildCustomActiveSet(){
       x, y: yCursor, limit: qty
     });
 
-    yCursor += grid.rows * dims.h + gap;
+    yCursor += grid.rows * dims.h + (grid.rows - 1) * SHEET_GAP_IN + gap;
   }
 
   resetTaggedSlots(); // the sheet is being rebuilt, so hand-picked photos go
@@ -6614,7 +6614,13 @@ let SHEET_GAP_IN = 0;    // optional gap between photos (inches); 0 = connected
   if(!chk) return;
   chk.addEventListener('change', () => {
     SHEET_GAP_IN = chk.checked ? 0 : 0.125;
-    try{ if(typeof renderPage === 'function') renderPage(); }catch(e){}
+    try{
+      const id = activeSet && activeSet.id;
+      if(id === 'custom' && typeof buildCustomActiveSet === 'function') buildCustomActiveSet();
+      else if(id === 'polaroid' && typeof buildPolaroidActiveSet === 'function') buildPolaroidActiveSet();
+      else if(id === 'b2b' && typeof buildB2BActiveSet === 'function') buildB2BActiveSet();
+      else if(typeof renderPage === 'function') renderPage();
+    }catch(e){ try{ if(typeof renderPage === 'function') renderPage(); }catch(e2){} }
   });
 })();
 
