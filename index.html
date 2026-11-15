@@ -5737,41 +5737,28 @@ function hardenAlpha(a){
   return t * t * (3 - 2 * t);   // smoothstep
 }
 
-// Otsu's method: find the threshold that best separates the soft model output
-// into "background" and "subject". White/cream backdrops make the model less
-// decisive, so a fixed cut point leaves a haze; Otsu lifts the cut to match
-// the actual image.
-function otsuThreshold(data, n){
-  const hist = new Float64Array(256);
+// Adaptive threshold: the model emits a soft foreground probability. The mean
+// of the "background" and "subject" halves gives a robust split point that
+// follows the actual image — white/cream backdrops push the model higher, so
+// this cuts them instead of leaving the soft haze a fixed point would.
+function adaptiveThreshold(data, n){
+  let sumLo = 0, cntLo = 0, sumHi = 0, cntHi = 0;
   for(let i = 0; i < n; i++){
-    let v = data[i];
-    if(!(v > 0)) v = 0; else if(v >= 1) v = 1;
-    hist[(v * 255) | 0]++;
+    const v = data[i];
+    if(v < 0.5){ sumLo += v; cntLo++; }
+    else { sumHi += v; cntHi++; }
   }
-  let sum = 0;
-  for(let i = 0; i < 256; i++) sum += i * hist[i];
-  let sumB = 0, wB = 0, maxVar = 0, thr = 128;
-  for(let i = 0; i < 256; i++){
-    wB += hist[i];
-    if(wB === 0) continue;
-    const wF = n - wB;
-    if(wF === 0) break;
-    sumB += i * hist[i];
-    const mB = sumB / wB;
-    const mF = (sum - sumB) / wF;
-    const between = wB * wF * (mB - mF) * (mB - mF);
-    if(between > maxVar){ maxVar = between; thr = i; }
-  }
-  return thr / 255;
+  if(cntLo < n * 0.02 || cntHi < n * 0.02) return 0.35;   // degenerate image
+  return ((sumLo / cntLo) + (sumHi / cntHi)) / 2;
 }
 
 function maskToCanvas(data){
   const N = SEG_SIZE * SEG_SIZE;
-  const T = otsuThreshold(data, N);
-  // Blend the adaptive threshold with the user's cleanup slider (MASK_LO, set
-  // by the slider; default 0.35). Otsu dominates so light backdrops cut cleanly
-  // at the default slider position, while the slider still nudges it.
-  const lo = Math.max(0.02, Math.min(0.80, T * 0.7 + MASK_LO * 0.3 - 0.05));
+  const T = adaptiveThreshold(data, N);
+  // Blend the adaptive split with the user's cleanup slider (MASK_LO, default
+  // 0.35). The adaptive value dominates so light backdrops cut cleanly, while
+  // the slider still nudges it.
+  const lo = Math.max(0.03, Math.min(0.78, T * 0.7 + MASK_LO * 0.3));
   const span = MASK_HI - MASK_LO;
   const alpha = new Float32Array(N);
   for(let i = 0; i < N; i++){
