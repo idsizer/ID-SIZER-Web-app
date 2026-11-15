@@ -7865,9 +7865,10 @@ function drawTrialWatermark(w, h){
   ctx.restore();
 }
 
-// When photos are spaced, re-stack the sections vertically so the gap between
-// different-size blocks matches the gap between photos (otherwise a 2x2 block
-// and the 1x1 block below it end up with a wider, uneven gap).
+// Re-stack the sections vertically so the gap between different-size blocks
+// follows the Connected setting (0 when connected, the photo gap when spaced).
+// Without this, the 2x2 block and the 1x1 block below it keep their designed
+// gap, which reads as a "huge gap" next to the connected photos.
 function reflowSpacedSections(sections){
   const out = sections.map(s => ({ ...s }));
   let cursor = null;
@@ -7903,7 +7904,9 @@ function renderPage(){
     arranged.forEach((p, i) => drawPlacedPhoto(p, i));
     drawSelection();
   } else {
-    const sections = (SHEET_GAP_IN > 0 && /^set\d+$/.test(activeSet.id))
+    // Preset sets (SET 1–5) stack their size blocks; reflow them so the blocks
+    // follow the Connected checkbox — touching when connected, spaced when not.
+    const sections = /^set\d+$/.test(activeSet.id)
       ? reflowSpacedSections(activeSet.sections)
       : activeSet.sections;
     sections.forEach(section => drawSection(section, pageW));
