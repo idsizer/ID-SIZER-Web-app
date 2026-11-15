@@ -546,6 +546,37 @@
   .set-sublist .set-card.set-sub{ padding-left:12px; }
 
   /* ---------------------------------------------------------
+     Set category bar — the five category cards live here, at the top
+     --------------------------------------------------------- */
+  .set-bar{
+    background:var(--card);
+    border-bottom:1px solid var(--line);
+    box-shadow:0 1px 4px rgba(0,0,0,.06);
+  }
+  .set-bar-inner{
+    max-width:1760px; margin:0 auto; padding:8px 16px;
+  }
+  .set-bar .set-list{
+    position:relative;
+    display:flex; flex-wrap:wrap; gap:8px;
+  }
+  .set-bar .set-card{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:8px 14px;
+  }
+  .set-bar .set-card .set-desc{ display:none; }
+  .set-bar .set-card input{ position:static; margin:0; }
+  .set-bar .set-sublist{
+    position:absolute; top:100%; left:0; right:0; z-index:50;
+    display:flex; flex-direction:row; flex-wrap:wrap; gap:8px;
+    background:var(--card); border:1.5px solid var(--line-strong);
+    border-radius:var(--r); box-shadow:var(--shadow-2);
+    padding:10px; margin-top:8px;
+    border-left:1.5px solid var(--line-strong); padding-left:10px;
+  }
+  .set-bar .set-sublist .set-card.set-sub{ flex:1 1 200px; padding-left:12px; }
+
+  /* ---------------------------------------------------------
      Custom set form
      --------------------------------------------------------- */
   .custom-form{
@@ -2009,6 +2040,13 @@
 <button type="button" id="updateMini" title="Update available &mdash; click to view">&#8681;</button>
 <button type="button" id="announceMini" title="Announcement">&#128226;</button>
 
+<!-- ============ SET CATEGORY BAR ============ -->
+<div class="set-bar">
+  <div class="set-bar-inner">
+    <div class="set-list" id="setList"></div>
+  </div>
+</div>
+
 <div class="wrap">
 
   <!-- ============ STEP 1 ============ -->
@@ -2016,7 +2054,6 @@
     <h2 data-step="1" data-i18n="step1">Choose a set</h2>
     <div class="panel-body">
       <p class="panel-sub" data-i18n="step1sub">Choose how many photos and what sizes.</p>
-      <div class="set-list" id="setList"></div>
 
       <div class="custom-form" id="polaroidForm">
         <h3 class="custom-section-label" data-i18n="polaroidTitle">Polaroid style</h3>
