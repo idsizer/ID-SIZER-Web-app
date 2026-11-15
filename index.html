@@ -719,6 +719,81 @@
   }
   #fileInput{display:none;}
 
+  /* ---------------------------------------------------------
+     Phase 5 — receive the customer photo from the phone
+     --------------------------------------------------------- */
+  .phone-card{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:12px 14px;
+    margin:0 0 16px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+  }
+  .phone-qr{
+    flex:0 0 auto;
+    width:104px;
+    height:104px;
+    padding:6px;
+    background:#ffffff;
+    border:1px solid var(--line);
+    border-radius:10px;
+  }
+  .phone-qr img{display:block;width:100%;height:100%;image-rendering:pixelated;}
+  .phone-qr .phone-qr-empty{
+    display:flex;align-items:center;justify-content:center;
+    width:100%;height:100%;font-size:11px;color:var(--muted);text-align:center;
+  }
+  .phone-copy{flex:1 1 auto;min-width:0;}
+  .phone-head{
+    display:flex;align-items:center;gap:7px;
+    font-size:13.5px;font-weight:700;color:var(--ink);
+  }
+  .phone-dot{
+    flex:0 0 auto;width:8px;height:8px;border-radius:50%;
+    background:var(--line-strong);
+  }
+  .phone-dot.ok{background:var(--ok);box-shadow:0 0 0 3px var(--ok-tint);}
+  .phone-dot.bad{background:var(--accent);box-shadow:0 0 0 3px var(--accent-tint);}
+  .phone-line{margin:5px 0 0;font-size:12.5px;line-height:1.45;color:var(--muted);}
+  .phone-line a{color:var(--accent-dark);font-weight:600;text-decoration:none;}
+  .phone-line a:hover{text-decoration:underline;}
+  .phone-url{
+    margin:7px 0 0;
+    padding:5px 8px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:11px;
+    color:var(--ink-2);
+    background:var(--card-2);
+    border:1px solid var(--line);
+    border-radius:6px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .phone-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .phone-actions button{
+    appearance:none;
+    padding:6px 11px;
+    font:inherit;font-size:12px;font-weight:600;
+    color:var(--ink-2);
+    background:var(--card);
+    border:1px solid var(--line-strong);
+    border-radius:7px;
+    cursor:pointer;
+    transition:background .12s,border-color .12s,color .12s;
+  }
+  .phone-actions button:hover{background:var(--bg-2);border-color:var(--muted);}
+  .phone-actions button:active{transform:translateY(1px);}
+  .phone-note{margin:7px 0 0;font-size:11.5px;line-height:1.4;color:var(--muted);}
+  .phone-note strong{color:var(--ink-2);}
+  @media (max-width:520px){
+    .phone-card{flex-direction:column;align-items:flex-start;}
+    .phone-qr{width:128px;height:128px;}
+  }
+
   .bg-link-box{background:var(--card-2);}
   .bg-link-box h3{
     display:flex;align-items:center;gap:8px;
@@ -2034,6 +2109,25 @@
         </div>
         <input type="file" id="fileInput" accept="image/*" multiple>
         <input type="file" id="assignInput" accept="image/*" style="display:none;">
+
+        <div class="phone-card" id="phoneCard">
+          <div class="phone-qr" id="phoneQr" aria-label="QR code to send a photo from the phone">
+            <div class="phone-qr-empty">Starting…</div>
+          </div>
+          <div class="phone-copy">
+            <div class="phone-head">
+              <span class="phone-dot" id="phoneDot"></span>
+              <span>Receive from phone</span>
+            </div>
+            <p class="phone-line">Scan this with the iPhone or Android camera, then take and send the photo.</p>
+            <div class="phone-url" id="phoneUrl">Starting…</div>
+            <div class="phone-actions">
+              <button type="button" id="phoneCopyLink">Copy link</button>
+              <button type="button" id="phoneNewCode">New code</button>
+            </div>
+            <p class="phone-note" id="phoneNote">Photos arrive in <strong>Saved photos</strong> automatically.</p>
+          </div>
+        </div>
 
         <div class="crop-stage" id="cropStage">
 
@@ -5091,6 +5185,11 @@ function openFile(file){
     const loaded = new Image();
     loaded.onload = () => {
       applyLoadedImage(loaded, e.target.result);
+      // Phase 5 — a photo sent from the phone is cleaned automatically.
+      if(window.__idplAutoRemoveBg){
+        window.__idplAutoRemoveBg = false;
+        setTimeout(function(){ try{ removeBackground(); }catch(e){} }, 30);
+      }
       // A brand-new photo replaces whatever was in "Frame the photo" and is not
       // in Saved photos yet - it joins the list only when the user presses
       // "Save edited picture". Clear the highlight so no saved thumbnail looks
@@ -8434,5 +8533,169 @@ function enterMultiMode(){
 
 <!-- Print-only copy of the finished sheet (see updatePrintStyle / printBtn). -->
 <div id="printRoot" aria-hidden="true"><img id="printImage" alt=""></div>
+<script src="qrcode.js"></script>
+<script>
+// Phase 5C — "Receive from phone" for the web app. A tiny relay worker hands
+// the photo from the phone to this page over the internet, paired by a short
+// code shown in the QR. No LAN, no account.
+(function(){
+  'use strict';
+
+  var relay = (window.IDPL_WEB_CONFIG && window.IDPL_WEB_CONFIG.phoneRelayUrl) || '';
+  var code = null;
+  var received = 0;
+  var seen = {};
+  var pollTimer = null;
+  var pollErrored = false;
+  var phoneUrl = null;
+
+  var qrEl = document.getElementById('phoneQr');
+  var urlEl = document.getElementById('phoneUrl');
+  var dotEl = document.getElementById('phoneDot');
+  var noteEl = document.getElementById('phoneNote');
+  var copyBtn = document.getElementById('phoneCopyLink');
+  var newBtn = document.getElementById('phoneNewCode');
+
+  function setState(ok, note){
+    if(dotEl) dotEl.className = 'phone-dot' + (ok ? ' ok' : ' bad');
+    if(note && noteEl) noteEl.textContent = note;
+  }
+
+  function drawQr(text){
+    if(!text || typeof qrcode !== 'function'){
+      if(qrEl) qrEl.innerHTML = '<div class="phone-qr-empty">QR<br>unavailable</div>';
+      return;
+    }
+    try{
+      var qr = qrcode(0, 'M');
+      qr.addData(text);
+      qr.make();
+      qrEl.innerHTML = '<img alt="QR code to open SIZER Capture on the phone" src="' +
+        qr.createDataURL(5, 2) + '">';
+    }catch(e){
+      qrEl.innerHTML = '<div class="phone-qr-empty">QR<br>unavailable</div>';
+    }
+  }
+
+  function dataUrlToFile(dataUrl, name){
+    var m = /^data:([^;,]+)(;base64)?,([\s\S]*)$/.exec(String(dataUrl || ''));
+    if(!m) return null;
+    var mime = m[1] || 'image/jpeg';
+    var bytes;
+    if(m[2]){
+      var bin = atob(m[3]);
+      bytes = new Uint8Array(bin.length);
+      for(var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    }else{
+      bytes = new TextEncoder().encode(decodeURIComponent(m[3]));
+    }
+    return new File([bytes], name || 'phone-photo.jpg', { type: mime });
+  }
+
+  function copyText(text){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function(resolve, reject){
+      try{
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if(ok) resolve(); else reject(new Error('copy failed'));
+      }catch(e){ reject(e); }
+    });
+  }
+
+  function ingest(photo){
+    var file = dataUrlToFile(photo.dataUrl, photo.file || photo.name || 'phone.jpg');
+    if(!file) return;
+    received++;
+    try{
+      var stage = document.getElementById('cropStage');
+      var editing = !!(stage && getComputedStyle(stage).display !== 'none');
+      if(!editing && typeof openFile === 'function'){
+        window.__idplAutoRemoveBg = true;   // clean the background automatically
+        openFile(file);
+      }
+      if(typeof stashPhoto === 'function') stashPhoto(file);
+      else if(typeof openFiles === 'function') openFiles([file]);
+    }catch(e){}
+    setState(true, received + ' photo' + (received === 1 ? '' : 's') +
+      ' received' + (photo.name ? ' · ' + photo.name : '') + '.');
+  }
+
+  function poll(){
+    if(!code) return;
+    fetch(relay + '/poll?code=' + encodeURIComponent(code))
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if(!res || !res.ok){ setState(false, res && res.error ? res.error : 'No connection.'); return; }
+        if(received === 0){
+          setState(true, 'Waiting for the phone to send.');
+        } else if(pollErrored){
+          setState(true, received + ' photo' + (received === 1 ? '' : 's') + ' received.');
+        }
+        pollErrored = false;
+        (res.photos || []).forEach(function(p){
+          if(p && p.id && !seen[p.id]){ seen[p.id] = true; ingest(p); }
+        });
+      })
+      .catch(function(){ pollErrored = true; setState(false, 'Cannot reach the relay — retrying.'); });
+  }
+
+  function startPolling(){
+    if(pollTimer) clearInterval(pollTimer);
+    poll();
+    pollTimer = setInterval(poll, 2500);
+  }
+
+  async function pair(){
+    if(!relay){ fail('The phone relay is not configured.'); return; }
+    try{
+      var res = await fetch(relay + '/pair', { method: 'POST' });
+      var data = await res.json();
+      if(!data || !data.ok || !data.code) throw new Error((data && data.error) || 'pair failed');
+      code = data.code;
+      seen = {};
+      phoneUrl = location.origin + '/phone.html?code=' + code;
+      drawQr(phoneUrl);
+      if(urlEl){ urlEl.textContent = phoneUrl; urlEl.title = phoneUrl; }
+      setState(true, 'Scan, take the photo, and send. It appears below in seconds.');
+      startPolling();
+    }catch(e){
+      fail('Cannot reach the relay — retrying.');
+      setTimeout(pair, 3000);
+    }
+  }
+
+  function fail(note){
+    setState(false, note);
+    if(urlEl) urlEl.textContent = relay ? 'Relay: ' + relay : 'Relay not configured';
+    qrEl.innerHTML = '<div class="phone-qr-empty">No<br>QR</div>';
+  }
+
+  copyBtn.addEventListener('click', function(){
+    if(!phoneUrl) return;
+    copyText(phoneUrl).then(function(){
+      copyBtn.textContent = 'Copied';
+      setTimeout(function(){ copyBtn.textContent = 'Copy link'; }, 1600);
+    }).catch(function(){ setState(true, 'Copy failed — select the link and copy it by hand.'); });
+  });
+
+  newBtn.addEventListener('click', function(){
+    if(code){
+      try{ fetch(relay + '/clear?code=' + encodeURIComponent(code), { method: 'POST' }); }catch(e){}
+    }
+    code = null; seen = {}; received = 0;
+    setState(true, 'Creating a new code…');
+    pair();
+  });
+
+  pair();
+})();
+</script>
+
 </body>
 </html>

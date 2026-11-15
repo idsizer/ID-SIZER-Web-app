@@ -20,6 +20,9 @@
 window.IDPL_WEB_CONFIG = {
   version: "4.7.5",
   activationUrl: "https://idpl-activation.jasonirishilot99.workers.dev",
+  // Phase 5C — "Receive from phone" relay. The phone uploads to this worker
+  // and the web app polls it, so photos can arrive from anywhere (no LAN).
+  phoneRelayUrl: "https://idpl-phone-relay.jasonirishilot99.workers.dev",
   mlBase: "ml/",
   checkForDesktopUpdates: false
 };

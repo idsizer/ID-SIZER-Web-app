@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SIZER Capture</title>
+<style>
+  :root{
+    --bg:#eceff4; --card:#ffffff; --ink:#141a21; --ink-2:#3d4855; --muted:#6b7684;
+    --line:#dbe2ea; --line-strong:#c3ccd8; --accent:#c8202b; --accent-dark:#a4151f;
+    --accent-tint:#fdeced; --ok:#0f7a4a; --ok-tint:#e7f6ee; --danger:#b3261e;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:16px; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .wrap{max-width:520px; margin:0 auto;}
+  h1{font-size:20px; margin:4px 0 2px;}
+  .sub{font-size:13px; color:var(--muted); margin:0 0 14px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px;}
+  .status{
+    display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600;
+    padding:10px 12px; border-radius:10px; margin-bottom:14px;
+  }
+  .status.ok{background:var(--ok-tint); color:var(--ok);}
+  .status.bad{background:var(--accent-tint); color:var(--accent-dark);}
+  .dot{width:9px; height:9px; border-radius:50%; background:currentColor; flex:0 0 auto;}
+  .row{display:flex; gap:10px; flex-wrap:wrap;}
+  button{
+    appearance:none; border:1px solid var(--line-strong); background:var(--card); color:var(--ink-2);
+    font:inherit; font-size:14px; font-weight:600; padding:12px 14px; border-radius:10px; cursor:pointer;
+    flex:1 1 130px; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  }
+  button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  button.primary:active{background:var(--accent-dark);}
+  button:active{transform:translateY(1px);}
+  label{font-size:12.5px; font-weight:600; color:var(--ink-2); display:block; margin:12px 0 5px;}
+  input[type=text]{
+    width:100%; padding:11px 12px; font:inherit; font-size:15px; border:1px solid var(--line-strong);
+    border-radius:10px; background:var(--card); color:var(--ink);
+  }
+  ul{list-style:none; margin:0; padding:0;}
+  li{
+    display:flex; align-items:center; gap:10px; padding:10px 0;
+    border-bottom:1px solid var(--line);
+  }
+  li:last-child{border-bottom:none;}
+  .thumb{width:52px; height:52px; border-radius:8px; object-fit:cover; background:#fff; border:1px solid var(--line); flex:0 0 auto;}
+  .meta{flex:1 1 auto; min-width:0;}
+  .meta input{width:100%; margin:0; padding:7px 9px; font-size:14px;}
+  .x{border:none; background:none; color:var(--muted); font-size:22px; cursor:pointer; padding:4px 8px; flex:0 0 auto;}
+  .hint{font-size:12px; color:var(--muted); margin-top:8px;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SIZER Capture</h1>
+  <p class="sub">Send the customer photo straight to SIZER.</p>
+
+  <div class="status" id="status"><span class="dot"></span><span id="statusText">Checking…</span></div>
+
+  <div class="card">
+    <div class="row">
+      <button type="button" id="cameraBtn">📷 Take photo</button>
+      <button type="button" id="libraryBtn">🖼️ Library</button>
+    </div>
+    <p class="hint">Photos are shrunk to 2000 px before sending, so they go fast.</p>
+  </div>
+
+  <div class="card">
+    <ul id="queue"></ul>
+    <div id="emptyNote" class="hint">No photos yet — tap <strong>Take photo</strong> or <strong>Library</strong>.</div>
+    <div class="row" style="margin-top:12px;">
+      <button type="button" class="primary" id="sendBtn" disabled>Send photos</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+<input type="file" id="libraryInput" accept="image/*" multiple class="hidden">
+
+<script>
+(function(){
+  'use strict';
+  var relay = '';
+  var code = null;
+  var queue = [];   // { id, name, dataUrl, thumb }
+
+  var statusEl = document.getElementById('status');
+  var statusText = document.getElementById('statusText');
+  var queueEl = document.getElementById('queue');
+  var emptyNote = document.getElementById('emptyNote');
+  var sendBtn = document.getElementById('sendBtn');
+  var cameraInput = document.getElementById('cameraInput');
+  var libraryInput = document.getElementById('libraryInput');
+  var cameraBtn = document.getElementById('cameraBtn');
+  var libraryBtn = document.getElementById('libraryBtn');
+
+  code = new URLSearchParams(location.search).get('code') || '';
+
+  // The relay lives on the same origin's config, but the phone page is a
+  // separate page; try to read it from the opener's config, else default.
+  try {
+    if (window.parent && window.parent.IDPL_WEB_CONFIG) relay = window.parent.IDPL_WEB_CONFIG.phoneRelayUrl;
+  } catch (e) {}
+  if (!relay) relay = 'https://idpl-phone-relay.jasonirishilot99.workers.dev';
+
+  function setStatus(ok, text){
+    statusEl.className = 'status ' + (ok ? 'ok' : 'bad');
+    statusText.textContent = text;
+  }
+
+  function render(){
+    queueEl.innerHTML = '';
+    queue.forEach(function(p, idx){
+      var li = document.createElement('li');
+      var im = document.createElement('img'); im.className = 'thumb'; im.src = p.thumb;
+      var meta = document.createElement('div'); meta.className = 'meta';
+      var inp = document.createElement('input'); inp.type = 'text'; inp.placeholder = 'Name (optional)';
+      inp.maxLength = 48; inp.value = p.name;
+      inp.addEventListener('input', function(){ p.name = inp.value; });
+      meta.appendChild(inp);
+      var x = document.createElement('button'); x.className = 'x'; x.textContent = '\u00d7'; x.title = 'Remove';
+      x.addEventListener('click', function(){ queue.splice(idx, 1); render(); });
+      li.appendChild(im); li.appendChild(meta); li.appendChild(x);
+      queueEl.appendChild(li);
+    });
+    emptyNote.style.display = queue.length ? 'none' : 'block';
+    sendBtn.disabled = queue.length === 0;
+  }
+
+  function downscale(file, maxPx, cb){
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var img = new Image();
+      img.onload = function(){
+        var scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        var w = Math.max(1, Math.round(img.width * scale));
+        var h = Math.max(1, Math.round(img.height * scale));
+        var c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        var type = (file.type === 'image/png') ? 'image/png' : 'image/jpeg';
+        var dataUrl = c.toDataURL(type, 0.88);
+        cb(dataUrl);
+      };
+      img.onerror = function(){ cb(null); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function(){ cb(null); };
+    reader.readAsDataURL(file);
+  }
+
+  function addFiles(files){
+    Array.prototype.forEach.call(files || [], function(file){
+      if(!file || !file.type || file.type.indexOf('image/') !== 0) return;
+      downscale(file, 2000, function(dataUrl){
+        if(!dataUrl) return;
+        queue.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2, 7), name: '', dataUrl: dataUrl, thumb: dataUrl });
+        render();
+        setStatus(true, queue.length + ' photo' + (queue.length === 1 ? '' : 's') + ' ready to send.');
+      });
+    });
+  }
+
+  cameraBtn.addEventListener('click', function(){ cameraInput.value = ''; cameraInput.click(); });
+  libraryBtn.addEventListener('click', function(){ libraryInput.value = ''; libraryInput.click(); });
+  cameraInput.addEventListener('change', function(){ addFiles(cameraInput.files); });
+  libraryInput.addEventListener('change', function(){ addFiles(libraryInput.files); });
+
+  sendBtn.addEventListener('click', function(){
+    if(!queue.length) return;
+    if(!code){ setStatus(false, 'Missing pairing code. Re-scan the QR in SIZER.'); return; }
+    sendBtn.disabled = true; sendBtn.textContent = 'Sending…';
+    var photos = queue.map(function(p){ return { name: p.name, data: p.dataUrl }; });
+    fetch(relay + '/put?code=' + encodeURIComponent(code), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ photos: photos })
+    }).then(function(r){ return r.json(); })
+      .then(function(res){
+        if(res && res.ok){
+          setStatus(true, 'Sent ' + res.count + ' photo' + (res.count === 1 ? '' : 's') + ' to SIZER. It appears there in a moment.');
+          queue = []; render();
+        } else {
+          setStatus(false, (res && res.error) || 'Send failed. Re-scan the QR in SIZER and try again.');
+        }
+      })
+      .catch(function(){ setStatus(false, 'Cannot reach SIZER. Check the internet connection and try again.'); })
+      .then(function(){ sendBtn.disabled = queue.length === 0; sendBtn.textContent = 'Send photos'; });
+  });
+
+  if(!code){
+    setStatus(false, 'No pairing code. Re-scan the QR shown in SIZER.');
+  } else {
+    setStatus(true, 'Ready — take the customer\u2019s photo, then tap Send.');
+  }
+})();
+</script>
+</body>
+</html>
