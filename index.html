@@ -5740,9 +5740,11 @@ function maskToCanvas(data){
   const cx = c.getContext('2d');
   const im = cx.createImageData(SEG_SIZE, SEG_SIZE);
   for(let i = 0; i < N; i++){
+    // Keep the base mask soft (no hardenAlpha here) so fine hair survives
+    // into the guided filter; the final pass in refinedMaskCanvas hardens it.
     const a = keep ? alpha[i] * keep[i] : alpha[i];
     im.data[i*4] = im.data[i*4+1] = im.data[i*4+2] = 255;
-    im.data[i*4+3] = Math.round(hardenAlpha(a) * 255);
+    im.data[i*4+3] = Math.round((a < 0 ? 0 : a > 1 ? 1 : a) * 255);
   }
   cx.putImageData(im, 0, 0);
   return c;
@@ -5787,6 +5789,71 @@ async function removeBackground(){
   }
 }
 
+// Estimate the backdrop colour from the regions the mask marks as background.
+// Used to strip the light halo a white/cream backdrop leaves on the subject's
+// edges and hair. Returns null when the backdrop is too varied to trust (a
+// busy background), so those photos are left alone.
+function estimateBackgroundColor(sourceImg, maskCanvas){
+  try{
+    const S = 256;
+    const sc = document.createElement('canvas'); sc.width = S; sc.height = S;
+    const sx = sc.getContext('2d');
+    const w = sourceImg.naturalWidth || sourceImg.width;
+    const h = sourceImg.naturalHeight || sourceImg.height;
+    sx.drawImage(sourceImg, 0, 0, w, h, 0, 0, S, S);
+    const sd = sx.getImageData(0, 0, S, S).data;
+
+    const mc = document.createElement('canvas'); mc.width = S; mc.height = S;
+    const mx = mc.getContext('2d');
+    mx.drawImage(maskCanvas, 0, 0, maskCanvas.width, maskCanvas.height, 0, 0, S, S);
+    const md = mx.getImageData(0, 0, S, S).data;
+
+    let sr = 0, sg = 0, sb = 0, n = 0;
+    for(let i = 0; i < S * S; i++){
+      if(md[i*4+3] < 8){ sr += sd[i*4]; sg += sd[i*4+1]; sb += sd[i*4+2]; n++; }
+    }
+    if(n < 200) return null;                 // not enough clear background
+    const br = sr / n, bg = sg / n, bb = sb / n;
+
+    let vr = 0, vg = 0, vb = 0;
+    for(let i = 0; i < S * S; i++){
+      if(md[i*4+3] < 8){
+        const dr = sd[i*4] - br, dg = sd[i*4+1] - bg, db = sd[i*4+2] - bb;
+        vr += dr * dr; vg += dg * dg; vb += db * db;
+      }
+    }
+    const sdv = Math.sqrt((vr + vg + vb) / (3 * n));
+    if(sdv > 42) return null;                // too colourful/uneven — leave it
+    return { r: br, g: bg, b: bb };
+  }catch(e){ return null; }
+}
+
+// Un-blend the backdrop colour from the semi-transparent edge pixels so the
+// cut-out has no white/cream fringe around the subject or its hair.
+function decontaminateEdges(ctx, w, h, bg){
+  if(!bg) return;
+  try{
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+    const N = w * h;
+    for(let i = 0; i < N; i++){
+      const a = d[i*4+3];
+      if(a === 0 || a === 255) continue;
+      const af = a / 255;
+      if(af < 0.04) continue;
+      const inv = 1 / af;
+      const k = 1 - af;
+      let r = (d[i*4]   - k * bg.r) * inv;
+      let g = (d[i*4+1] - k * bg.g) * inv;
+      let b = (d[i*4+2] - k * bg.b) * inv;
+      d[i*4]   = r < 0 ? 0 : r > 255 ? 255 : r;
+      d[i*4+1] = g < 0 ? 0 : g > 255 ? 255 : g;
+      d[i*4+2] = b < 0 ? 0 : b > 255 ? 255 : b;
+    }
+    ctx.putImageData(img, 0, 0);
+  }catch(e){}
+}
+
 // Rebuild the cut-out from the cached mask. Cheap enough to run live while
 // the cleanup slider is being dragged.
 function applyCutOut(firstTime){
@@ -5804,6 +5871,10 @@ function applyCutOut(firstTime){
   cx.imageSmoothingQuality = 'high';
   cx.drawImage(maskC, 0, 0, maskC.width, maskC.height, 0, 0, w, h);
   cx.globalCompositeOperation = 'source-over';
+
+  // Strip the backdrop tint (white/cream halo) from the cut-out's edges.
+  const bgCol = estimateBackgroundColor(segSourceImg, maskC);
+  decontaminateEdges(cx, w, h, bgCol);
 
   const url = c.toDataURL('image/png');
   const cut = new Image();
