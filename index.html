@@ -789,6 +789,11 @@
   .phone-actions button:active{transform:translateY(1px);}
   .phone-note{margin:7px 0 0;font-size:11.5px;line-height:1.4;color:var(--muted);}
   .phone-note strong{color:var(--ink-2);}
+  .phone-toggle{
+    display:flex;align-items:center;gap:7px;margin-top:9px;
+    font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer;
+  }
+  .phone-toggle input{width:15px;height:15px;margin:0;accent-color:var(--accent);cursor:pointer;}
   @media (max-width:520px){
     .phone-card{flex-direction:column;align-items:flex-start;}
     .phone-qr{width:128px;height:128px;}
@@ -2125,7 +2130,8 @@
               <button type="button" id="phoneCopyLink">Copy link</button>
               <button type="button" id="phoneNewCode">New code</button>
             </div>
-            <p class="phone-note" id="phoneNote">Photos arrive in <strong>Saved photos</strong> automatically.</p>
+            <label class="phone-toggle"><input type="checkbox" id="phoneAutoPlace" checked> Auto-place photos in the sheet</label>
+            <p class="phone-note" id="phoneNote">Photos auto-place in the sheet and land in <strong>Saved photos</strong>.</p>
           </div>
         </div>
 
@@ -5185,10 +5191,16 @@ function openFile(file){
     const loaded = new Image();
     loaded.onload = () => {
       applyLoadedImage(loaded, e.target.result);
-      // Phase 5 — a photo sent from the phone is cleaned automatically.
-      if(window.__idplAutoRemoveBg){
+      // Phase 5 — a photo sent from the phone is cleaned and placed automatically.
+      if(window.__idplAutoRemoveBg || window.__idplAutoPlace){
+        const doRemove = window.__idplAutoRemoveBg;
+        const doPlace  = window.__idplAutoPlace;
         window.__idplAutoRemoveBg = false;
-        setTimeout(function(){ try{ removeBackground(); }catch(e){} }, 30);
+        window.__idplAutoPlace = false;
+        setTimeout(function(){
+          if(doRemove){ try{ removeBackground(); }catch(e){} }
+          if(doPlace){ try{ if(typeof placeReceivedIntoSheet === 'function') placeReceivedIntoSheet(); }catch(e){} }
+        }, 30);
       }
       // A brand-new photo replaces whatever was in "Frame the photo" and is not
       // in Saved photos yet - it joins the list only when the user presses
@@ -5243,12 +5255,12 @@ function openFiles(files){
 }
 
 // Read a file and add it to Saved photos without touching the editor.
-function stashPhoto(file){
+function stashPhoto(file, name){
   try{
     const reader = new FileReader();
     reader.onload = ev => {
       const im = new Image();
-      im.onload = () => { try{ addPersonEntry(ev.target.result, im); }catch(e){} };
+      im.onload = () => { try{ addPersonEntry(ev.target.result, im, name); }catch(e){} };
       im.src = ev.target.result;
     };
     reader.readAsDataURL(file);
@@ -6927,8 +6939,8 @@ const savedPeopleActive = document.getElementById('savedPeopleActive');
 function personById(id){ return savedPeople.find(x => x.id === id) || null; }
 
 // Add a photo to the list and mark it as the one being edited.
-function addPersonEntry(dataURL, imgObj){
-  const entry = { id: 'p' + (++personSeq), dataURL: dataURL, img: imgObj, source: dataURL };
+function addPersonEntry(dataURL, imgObj, name){
+  const entry = { id: 'p' + (++personSeq), dataURL: dataURL, img: imgObj, source: dataURL, name: (name || '').toString().slice(0, 48), placedInSheet: false };
   savedPeople.push(entry);
   activePersonId = entry.id;
   renderSavedPeople();
@@ -8609,6 +8621,56 @@ function enterMultiMode(){
 // Phase 5C — "Receive from phone" for the web app. A tiny relay worker hands
 // the photo from the phone to this page over the internet, paired by a short
 // code shown in the QR. No LAN, no account.
+
+// Global helper: place the received photos into the sheet's empty cells, with
+// their names on the tags. Called from the editor's photo-load hook so it runs
+// only after the sheet has been laid out.
+function placeReceivedIntoSheet(){
+  try{
+    if(typeof activeSet === 'undefined' || !activeSet) return 0;
+    if(activeSet.id === 'multi' || activeSet.id === 'b2b') return 0;
+    if(typeof arrangeMode !== 'undefined' && (arrangeMode || arranged)) return 0;
+    if(typeof photoSlots === 'undefined' || !photoSlots || !photoSlots.length) return 0;
+    if(typeof slotPhotos === 'undefined' || typeof taggedSlots === 'undefined' || typeof fillAllCells === 'undefined') return 0;
+
+    var toggle = document.getElementById('phoneAutoPlace');
+    if(toggle && !toggle.checked) return 0;
+
+    var people = (typeof savedPeople !== 'undefined') ? savedPeople : [];
+    var pending = people.filter(function(p){ return p && p.img && !p.placedInSheet; });
+    if(!pending.length) return 0;
+
+    var emptyIdx = [];
+    for(var s = 0; s < photoSlots.length; s++){
+      if(!slotPhotos.has(photoSlots[s].i)) emptyIdx.push(photoSlots[s].i);
+    }
+
+    var placed = 0;
+    if(pending.length === 1 && emptyIdx.length === photoSlots.length){
+      var pn = pending[0];
+      fillAllCells = true;
+      slotPhotos.clear();
+      if(pn.name){
+        for(var e = 0; e < photoSlots.length; e++) taggedSlots.set(photoSlots[e].i, pn.name);
+      }
+      pn.placedInSheet = true;
+      placed = photoSlots.length;
+    } else {
+      fillAllCells = false;
+      for(var k = 0; k < pending.length && k < emptyIdx.length; k++){
+        var p = pending[k];
+        slotPhotos.set(emptyIdx[k], p.img);
+        if(p.name) taggedSlots.set(emptyIdx[k], p.name);
+        p.placedInSheet = true;
+        placed++;
+      }
+    }
+
+    if(placed && typeof renderPage === 'function') renderPage();
+    return placed;
+  }catch(e){ return 0; }
+}
+
 (function(){
   'use strict';
 
@@ -8679,22 +8741,41 @@ function enterMultiMode(){
     });
   }
 
+  var placeTimer = null;
+  function schedulePlace(){
+    if(placeTimer) clearTimeout(placeTimer);
+    placeTimer = setTimeout(function(){ try{ placeReceivedIntoSheet(); }catch(e){} }, 700);
+  }
+
   function ingest(photo){
     var file = dataUrlToFile(photo.dataUrl, photo.file || photo.name || 'phone.jpg');
     if(!file) return;
     received++;
+    var nm = (photo.name || '').trim();
+
+    // The name typed on the phone becomes the name tag.
+    if(nm){
+      try{
+        if(typeof nameTagText !== 'undefined' && nameTagText){ nameTagText.value = nm; }
+        if(typeof onNameTagChanged === 'function') onNameTagChanged();
+      }catch(e){}
+    }
+
     try{
       var stage = document.getElementById('cropStage');
       var editing = !!(stage && getComputedStyle(stage).display !== 'none');
       if(!editing && typeof openFile === 'function'){
         window.__idplAutoRemoveBg = true;   // clean the background automatically
+        window.__idplAutoPlace = true;      // then place it on the sheet
         openFile(file);
       }
-      if(typeof stashPhoto === 'function') stashPhoto(file);
+      if(typeof stashPhoto === 'function') stashPhoto(file, nm);
       else if(typeof openFiles === 'function') openFiles([file]);
+      schedulePlace();
     }catch(e){}
+
     setState(true, received + ' photo' + (received === 1 ? '' : 's') +
-      ' received' + (photo.name ? ' · ' + photo.name : '') + '.');
+      ' received' + (nm ? ' · ' + nm : '') + '.');
   }
 
   function poll(){
