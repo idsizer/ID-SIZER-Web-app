@@ -2349,6 +2349,10 @@
               <input type="checkbox" id="nameTagStretch">
               <span data-i18n="nameTagStretch">Stretch to fit long names</span>
             </label>
+            <div class="nametag-size-row" style="margin-top:9px;">
+              <label for="nameTagSize">Name tag size <span id="nameTagSizeVal" style="color:var(--muted);">16%</span></label>
+              <input type="range" id="nameTagSize" min="10" max="30" value="16" style="width:100%;">
+            </div>
             <div class="nametag-pick-row" id="nameTagPickRow" style="display:none;">
               <p class="hint"><strong>Click a photo</strong> to tag it, or drag the tag below onto one.</p>
               <div class="nametag-chip-line">
@@ -6909,7 +6913,7 @@ let SHEET_GAP_IN = 0;    // optional gap between photos (inches); 0 = connected
 })();
 
 // ---------- ID name tag ----------
-const NAMETAG_BAND_RATIO = 0.16; // white bar height, as a share of the photo height
+let NAMETAG_BAND_RATIO = 0.16; // white bar height, as a share of the photo height
 
 const nameTagText   = document.getElementById('nameTagText');
 const nameTagAllBtn = document.getElementById('nameTagAllBtn');
@@ -6921,6 +6925,7 @@ const nameTagCountNote = document.getElementById('nameTagCountNote');
 const nameTagBand   = document.getElementById('nameTagBand');
 const nameTagBandText = document.getElementById('nameTagBandText');
 const nameTagStretchEl = document.getElementById('nameTagStretch');
+const nameTagSizeEl = document.getElementById('nameTagSize');
 // A scratch canvas measures the name exactly as the sheet will draw it.
 const nameTagMeasure = document.createElement('canvas').getContext('2d');
 const NAMETAG_MIN_SCALE = 0.55; // never squeeze the name narrower than this
@@ -7116,6 +7121,19 @@ if(nameTagStretchEl){
     try{ localStorage.setItem('idpl_nametag_stretch', nameTagStretchEl.checked ? '1' : '0'); }catch(e){}
     onNameTagChanged();
   });
+}
+// Name tag size slider (white bar height, as a share of the photo).
+if(nameTagSizeEl){
+  const applySize = function(){
+    NAMETAG_BAND_RATIO = (parseInt(nameTagSizeEl.value, 10) || 16) / 100;
+    const v = document.getElementById('nameTagSizeVal');
+    if(v) v.textContent = nameTagSizeEl.value + '%';
+    if(typeof syncNameTagPreview === 'function') syncNameTagPreview();
+    if(typeof renderPage === 'function' && natW && img) renderPage();
+  };
+  NAMETAG_BAND_RATIO = (parseInt(nameTagSizeEl.value, 10) || 16) / 100;
+  nameTagSizeEl.addEventListener('input', applySize);
+  nameTagSizeEl.addEventListener('change', applySize);
 }
 
 nameTagAllBtn.addEventListener('click', ()=>{
