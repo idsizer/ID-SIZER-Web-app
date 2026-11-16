@@ -4321,6 +4321,13 @@ function computeGrid(qty, cellW, cellH, canvasW, canvasHRemaining, maxColsCap){
   const g = SHEET_GAP_IN || 0;
   let maxCols = Math.max(1, Math.floor((canvasW + g) / (cellW + g)));
   if(maxColsCap) maxCols = Math.min(maxCols, maxColsCap);
+  // A single row of photos: use exactly the number of photos (not the full
+  // sheet width) so there are no empty ghost cells and the row stays centred
+  // with a print-safe margin on each side.
+  if(qty <= maxCols){
+    if(cellH <= canvasHRemaining) return { cols: qty, rows: 1 };
+    return null;
+  }
   for(let cols = maxCols; cols >= 1; cols--){
     const rows = Math.ceil(qty / cols);
     if(rows * (cellH + g) - g <= canvasHRemaining) return {cols, rows};
