@@ -575,6 +575,27 @@
     border-left:1.5px solid var(--line-strong); padding-left:10px;
   }
   .set-bar .set-sublist .set-card.set-sub{ flex:1 1 200px; padding-left:12px; }
+  .set-sub-btn{
+    border:none; background:none; cursor:pointer;
+    font-size:13px; line-height:1; padding:2px 4px;
+    color:var(--muted); border-radius:5px; flex:none;
+  }
+  .set-sub-btn:hover{ color:var(--accent-dark); background:var(--accent-tint); }
+  .set-sub-save{ margin-left:auto; }
+  .set-sub-default.on{ color:#e9a23b; }
+
+  /* ---------------------------------------------------------
+     Compact density — tighter spacing + smaller sliders
+     --------------------------------------------------------- */
+  .group{ padding:10px; margin-bottom:10px; }
+  .panel-body{ padding:12px; }
+  .form-row{ margin-bottom:8px; }
+  .custom-form{ padding:10px; margin-top:10px; }
+  .group-title{ margin:0 0 2px; }
+  input[type=range]{ height:14px; }
+  input[type=range]::-webkit-slider-thumb{ width:13px; height:13px; }
+  input[type=range]::-moz-range-thumb{ width:13px; height:13px; }
+  .zoom-row{ margin:6px 0 2px; }
 
   /* ---------------------------------------------------------
      Custom set form
@@ -2268,6 +2289,12 @@
 
                   </div>
 
+        <div class="phone-toggles" style="display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 10px;">
+          <label class="phone-toggle"><input type="checkbox" id="phoneAutoPlace" checked> Auto-place photos in the sheet</label>
+          <label class="phone-toggle"><input type="checkbox" id="phoneAutoRemoveBg" checked> Auto-remove background</label>
+          <label class="phone-toggle"><input type="checkbox" id="phoneAutoLayout"> Use assigned layout</label>
+        </div>
+
         <div id="dropzone">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15.5V18a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2.5"/><path d="M12 15.5V3.5"/><path d="M7.5 8 12 3.5 16.5 8"/></svg>
           Drag &amp; drop your photo here
@@ -2291,8 +2318,6 @@
               <button type="button" id="phoneCopyLink">Copy link</button>
               <button type="button" id="phoneNewCode">New code</button>
             </div>
-            <label class="phone-toggle"><input type="checkbox" id="phoneAutoPlace" checked> Auto-place photos in the sheet</label>
-            <label class="phone-toggle"><input type="checkbox" id="phoneAutoRemoveBg" checked> Auto-remove background</label>
             <p class="phone-note" id="phoneNote">Photos auto-place in the sheet and land in <strong>Saved photos</strong>.</p>
           </div>
         </div>
@@ -3931,6 +3956,11 @@ function idplLockMarkHTML(){
     + '</span>';
 }
 
+// Default SET for "Use assigned layout" (auto-applied when photos arrive).
+const DEFAULT_SET_KEY = 'idpl_default_set';
+function idplGetDefaultSet(){ try{ return localStorage.getItem(DEFAULT_SET_KEY) || ''; }catch(e){ return ''; } }
+function idplSetDefaultSet(id){ try{ if(id) localStorage.setItem(DEFAULT_SET_KEY, id); else localStorage.removeItem(DEFAULT_SET_KEY); }catch(e){} }
+
 (function(){
   const isPresetSet = (id)=> /^set\d+$/.test(id);
   const setsCard = document.createElement('div');
@@ -3939,6 +3969,35 @@ function idplLockMarkHTML(){
   const subList = document.createElement('div');
   subList.className = 'set-sublist'; subList.style.display='none';
   setsCard.addEventListener('click', ()=>{ var open = subList.style.display==='none'; subList.style.display = open ? '' : 'none'; setsCard.classList.toggle('open', open); });
+
+  const renderDefaultStars = ()=>{
+    subList.querySelectorAll('.set-sub-default').forEach(b=>{
+      const c = b.closest('.set-card[data-id]');
+      const id = c ? c.dataset.id : '';
+      const on = id && idplGetDefaultSet() === id;
+      b.classList.toggle('on', on);
+      b.textContent = on ? '\u2605' : '\u2606';
+    });
+  };
+
+  subList.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.set-sub-btn');
+    if(!btn) return;
+    e.preventDefault(); e.stopPropagation();
+    const card = btn.closest('.set-card[data-id]');
+    const id = card ? card.dataset.id : '';
+    if(!id) return;
+    if(btn.dataset.act === 'save'){
+      try{
+        setSetOverride(id, serializeCurrentForm());
+        applySetOverridesToCards();
+        setEditBanner('Saved the current layout into ' + (card.querySelector('.set-tag') ? card.querySelector('.set-tag').textContent : id) + '.');
+      }catch(err){ console.error(err); }
+    } else if(btn.dataset.act === 'default'){
+      idplSetDefaultSet(idplGetDefaultSet() === id ? '' : id);
+      renderDefaultStars();
+    }
+  });
 
   const others = [];
   PRESET_SETS.forEach(cfg => {
@@ -3954,7 +4013,9 @@ function idplLockMarkHTML(){
     });
     if(isPresetSet(cfg.id)){
       label.className = 'set-card set-sub';
-      label.innerHTML = '<span class="set-tag">'+cfg.tag+'</span><div class="set-desc">'+cfg.desc+'</div>';
+      label.innerHTML = '<span class="set-tag">'+cfg.tag+'</span><div class="set-desc">'+cfg.desc+'</div>'
+        + '<button type="button" class="set-sub-btn set-sub-save" title="Save the current layout into this SET" data-act="save">&#128190;</button>'
+        + '<button type="button" class="set-sub-btn set-sub-default" title="Use this SET as the default for received photos" data-act="default">&#9734;</button>';
       subList.appendChild(label);
     } else {
       label.className = 'set-card';
@@ -3966,6 +4027,7 @@ function idplLockMarkHTML(){
   setListEl.appendChild(setsCard);
   setListEl.appendChild(subList);
   others.forEach(l => setListEl.appendChild(l));
+  renderDefaultStars();
 })();
 
 // Every SET is now an EDITABLE PACKAGE: selecting it loads its sizes into the
@@ -9150,6 +9212,12 @@ function placeReceivedIntoSheet(){
     try{
       var stage = document.getElementById('cropStage');
       var editing = !!(stage && getComputedStyle(stage).display !== 'none');
+      // Auto-apply the assigned (default) SET if asked.
+      var autoLayout = document.getElementById('phoneAutoLayout');
+      if(autoLayout && autoLayout.checked){
+        var defSet = ''; try{ defSet = (typeof idplGetDefaultSet === 'function') ? idplGetDefaultSet() : ''; }catch(e){}
+        if(defSet && typeof selectSet === 'function'){ try{ selectSet(defSet); }catch(e){} }
+      }
       if(!editing && typeof openFile === 'function'){
         var autoRemove = document.getElementById('phoneAutoRemoveBg');
         window.__idplAutoRemoveBg = !!(autoRemove && autoRemove.checked);   // clean the background if asked
