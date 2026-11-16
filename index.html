@@ -4016,22 +4016,31 @@ function idplSetDefaultSet(id){ try{ if(id) localStorage.setItem(DEFAULT_SET_KEY
 
   const others = [];
   PRESET_SETS.forEach(cfg => {
-    const label = document.createElement('label');
-    label.dataset.id = cfg.id;
-    label.addEventListener('click', () => {
-      selectSet(cfg.id);
-      // The Back to back form lives in step 2, so on a phone the selection
-      // would otherwise leave step 1 with nothing new to show.
-      if(cfg.isB2B && window.SIZERWeb && window.matchMedia('(max-width: 1039px)').matches){
-        window.SIZERWeb.setStep(2, { scroll:true, hash:true });
-      }
-    });
     if(isPresetSet(cfg.id)){
-      label.className = 'set-card set-sub';
-      label.innerHTML = '<span class="set-tag">'+cfg.tag+'</span><div class="set-desc">'+cfg.desc+'</div>'
+      // A <div>, not a <label>: a label forwards a click to its nested button,
+      // which made selecting a SET also tick its default star. Keep the two
+      // actions separate.
+      const card = document.createElement('div');
+      card.dataset.id = cfg.id;
+      card.addEventListener('click', (e)=>{
+        if(e.target && e.target.closest && e.target.closest('.set-sub-btn')) return;
+        selectSet(cfg.id);
+      });
+      card.className = 'set-card set-sub';
+      card.innerHTML = '<span class="set-tag">'+cfg.tag+'</span><div class="set-desc">'+cfg.desc+'</div>'
         + '<button type="button" class="set-sub-btn set-sub-default" title="Use this SET as the default for received photos" data-act="default">&#9734;</button>';
-      subList.appendChild(label);
+      subList.appendChild(card);
     } else {
+      const label = document.createElement('label');
+      label.dataset.id = cfg.id;
+      label.addEventListener('click', () => {
+        selectSet(cfg.id);
+        // The Back to back form lives in step 2, so on a phone the selection
+        // would otherwise leave step 1 with nothing new to show.
+        if(cfg.isB2B && window.SIZERWeb && window.matchMedia('(max-width: 1039px)').matches){
+          window.SIZERWeb.setStep(2, { scroll:true, hash:true });
+        }
+      });
       label.className = 'set-card';
       var lockMark = IDPL_PAID_SETS.indexOf(cfg.id) >= 0 ? idplLockMarkHTML() : '';
       label.innerHTML = '<input type="radio" name="setChoice" value="'+cfg.id+'"><span class="set-tag">'+cfg.tag+'</span><div class="set-desc">'+cfg.desc+'</div>'+lockMark;
