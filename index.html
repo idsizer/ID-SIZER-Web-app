@@ -581,7 +581,7 @@
     color:var(--muted); border-radius:5px; flex:none;
   }
   .set-sub-btn:hover{ color:var(--accent-dark); background:var(--accent-tint); }
-  .set-sub-save{ margin-left:auto; }
+  .set-sub-default{ margin-left:auto; }
   .set-sub-default.on{ color:#e9a23b; }
 
   /* SET picker modal (Save this layout into a SET) */
@@ -4010,16 +4010,8 @@ function idplSetDefaultSet(id){ try{ if(id) localStorage.setItem(DEFAULT_SET_KEY
     const card = btn.closest('.set-card[data-id]');
     const id = card ? card.dataset.id : '';
     if(!id) return;
-    if(btn.dataset.act === 'save'){
-      try{
-        setSetOverride(id, serializeCurrentForm());
-        applySetOverridesToCards();
-        setEditBanner('Saved the current layout into ' + (card.querySelector('.set-tag') ? card.querySelector('.set-tag').textContent : id) + '.');
-      }catch(err){ console.error(err); }
-    } else if(btn.dataset.act === 'default'){
-      idplSetDefaultSet(idplGetDefaultSet() === id ? '' : id);
-      renderDefaultStars();
-    }
+    idplSetDefaultSet(idplGetDefaultSet() === id ? '' : id);
+    renderDefaultStars();
   });
 
   const others = [];
@@ -4037,7 +4029,6 @@ function idplSetDefaultSet(id){ try{ if(id) localStorage.setItem(DEFAULT_SET_KEY
     if(isPresetSet(cfg.id)){
       label.className = 'set-card set-sub';
       label.innerHTML = '<span class="set-tag">'+cfg.tag+'</span><div class="set-desc">'+cfg.desc+'</div>'
-        + '<button type="button" class="set-sub-btn set-sub-save" title="Save the current layout into this SET" data-act="save">&#128190;</button>'
         + '<button type="button" class="set-sub-btn set-sub-default" title="Use this SET as the default for received photos" data-act="default">&#9734;</button>';
       subList.appendChild(label);
     } else {
