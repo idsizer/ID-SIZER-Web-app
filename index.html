@@ -5340,6 +5340,10 @@ function renderSavedLayouts(){
       const updated = loadSavedLayouts().filter((_, i) => i !== idx);
       persistSavedLayouts(updated);
       renderSavedLayouts();
+    });
+    savedLayoutsList.appendChild(card);
+  });
+}
 
 // ---- Saved SETS (edited SET templates the user names & keeps as reusable sets) ----
 const saveSetBtn = document.getElementById('saveSetBtn');
@@ -5401,10 +5405,6 @@ if(saveSetBtn) saveSetBtn.addEventListener('click', async ()=>{
   }catch(err){ console.error('Save set failed:', err); }
 });
 renderSavedSets();
-    });
-    savedLayoutsList.appendChild(card);
-  });
-}
 
 saveLayoutBtn.addEventListener('click', async ()=>{
   try{
