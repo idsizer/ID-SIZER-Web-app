@@ -4136,7 +4136,7 @@ function selectSet(id){
 
   var epb = document.getElementById('editPanelBody');
   var hd=document.getElementById('step2Heading');
-  if(cfg.isMulti){ if(epb) epb.classList.add('multi-mode'); document.body.classList.remove('b2b-mode','polaroid-mode'); if(hd) hd.textContent='Random photos'; setArrangeUI(false); enterMultiMode(); return; }
+  if(cfg.isMulti){ if(epb) epb.classList.add('multi-mode'); document.body.classList.remove('b2b-mode','polaroid-mode'); customForm.classList.remove('show'); if(b2bForm) b2bForm.classList.remove('show'); if(b2bSizeForm) b2bSizeForm.classList.remove('show'); if(polaroidForm) polaroidForm.classList.remove('show'); if(hd) hd.textContent='Random photos'; setArrangeUI(false); enterMultiMode(); return; }
   if(epb) epb.classList.remove('multi-mode');
   if(hd) hd.textContent='Add & edit your photo';
   setArrangeUI(!cfg.isPolaroid && !cfg.isB2B);
