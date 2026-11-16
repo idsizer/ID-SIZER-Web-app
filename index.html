@@ -584,6 +584,18 @@
   .set-sub-save{ margin-left:auto; }
   .set-sub-default.on{ color:#e9a23b; }
 
+  /* SET picker modal (Save this layout into a SET) */
+  .set-picker-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+  .set-picker-item{
+    display:flex; align-items:center; gap:10px;
+    border:1px solid var(--line); border-radius:8px; padding:10px 12px;
+    cursor:pointer; background:var(--card-2); text-align:left;
+  }
+  .set-picker-item:hover{ border-color:var(--accent); background:var(--accent-tint); }
+  .set-picker-item .set-tag{ flex:none; }
+  .set-picker-item .set-desc{ font-size:12px; color:var(--muted); }
+  #saveLayoutBtn.is-reset{ color:#c8202b; border-color:#c8202b; }
+
   /* ---------------------------------------------------------
      Compact density — tighter spacing + smaller sliders
      --------------------------------------------------------- */
@@ -1894,6 +1906,17 @@
   </div>
 </div>
 
+<div class="app-modal-backdrop" id="setPickerBackdrop">
+  <div class="app-modal">
+    <h3>Save this layout into a SET</h3>
+    <p class="hint" style="margin:0 0 10px;">Choose which SET this layout replaces. You can change it again later.</p>
+    <div class="set-picker-list" id="setPickerList"></div>
+    <div class="app-modal-actions">
+      <button type="button" class="btn-secondary" id="setPickerCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ FORMAL ATTIRE EDITOR ============ -->
 <div class="attire-gate" id="attireGate">
   <div class="attire-modal">
@@ -2179,9 +2202,9 @@
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2.8h7.4L13.2 5.6V13a.8.8 0 0 1-.8.8H3.6a.8.8 0 0 1-.8-.8V3.6a.8.8 0 0 1 .8-.8Z"/><path d="M5.4 2.8v3.4h4.2V2.8M5.4 13.8V9.6h5.2v4.2"/></svg>
             Save this set &amp; rename
           </button>
-          <button class="btn-secondary" id="saveLayoutBtn" data-i18n="saveLayout">
+          <button class="btn-secondary" id="saveLayoutBtn">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2.8h7.4L13.2 5.6V13a.8.8 0 0 1-.8.8H3.6a.8.8 0 0 1-.8-.8V3.6a.8.8 0 0 1 .8-.8Z"/><path d="M5.4 2.8v3.4h4.2V2.8M5.4 13.8V9.6h5.2v4.2"/></svg>
-            Save this layout for later
+            <span id="saveLayoutLabel">Save this layout for later</span>
           </button>
         </div>
         <div class="custom-error" id="customError"></div>
@@ -4056,6 +4079,8 @@ function presetToForm(cfg){
 }
 function selectSet(id){
   const cfg = PRESET_SETS.find(s => s.id === id);
+  currentSetId = id;   // track which SET slot is being viewed/edited
+  if(typeof updateSaveLayoutBtn === 'function') updateSaveLayoutBtn();
   multiActive = !!(cfg && cfg.isMulti);   // leaving Random Photos stops stale async redraws
   document.querySelectorAll('.set-card').forEach(el=>{
     el.classList.toggle('active', el.dataset.id === id);
@@ -4115,6 +4140,20 @@ function selectSet(id){
   customForm.classList.remove('show');
   if(polaroidForm) polaroidForm.classList.remove('show');
   exitDualMode();
+
+  // A SET that holds a saved custom layout opens as an editable custom sheet,
+  // so the saved sizes/canvas actually show (and can be tweaked again).
+  const override = getSetOverride(id);
+  if(override){
+    customForm.classList.add('show');
+    enterDualMode();
+    applySerializedForm(override);
+    try{ buildCustomActiveSet(); }catch(e){}
+    if(activeSet){ activeSet.id = id; activeSet.tag = cfg.tag; }
+    if(natW && activeSet){ setupCropBoxDims(); renderPage(); }
+    else clearPreview();
+    return;
+  }
 
   resetTaggedSlots();   // fixed SET layout, exactly as designed
   activeSet = cfg;
@@ -5315,6 +5354,7 @@ let memoryOverrides = {};
 function loadSetOverrides(){ if(!storageOK) return Object.assign({}, memoryOverrides); try{ return JSON.parse(localStorage.getItem(SET_OVERRIDES_KEY) || '{}') || {}; }catch(e){ return {}; } }
 function getSetOverride(id){ const o=loadSetOverrides(); return (o && o[id]) ? o[id] : null; }
 function setSetOverride(id, data){ const o=loadSetOverrides(); o[id]=data; memoryOverrides=o; if(storageOK){ try{ localStorage.setItem(SET_OVERRIDES_KEY, JSON.stringify(o)); }catch(e){ storageOK=false; } } }
+function deleteSetOverride(id){ const o=loadSetOverrides(); delete o[id]; memoryOverrides=o; if(storageOK){ try{ localStorage.setItem(SET_OVERRIDES_KEY, JSON.stringify(o)); }catch(e){ storageOK=false; } } }
 function describeForm(d){
   const cz = d.canvasSize==='custom' ? (d.canvasW+'\u00d7'+d.canvasH) : d.canvasSize;
   const parts = (d.rows||[]).map(r=>{ const l=r.sizeType==='1x1'?'1\u00d71':r.sizeType==='2x2'?'2\u00d72':r.sizeType==='passport'?'Passport':(r.w+'\u00d7'+r.h+'in'); return r.qty+' pcs '+l; });
@@ -5368,16 +5408,83 @@ renderSavedSets();
 
 saveLayoutBtn.addEventListener('click', async ()=>{
   try{
-    const name = await askForText('Name this layout:', 'My layout');
-    if(!name) return;
-    const layouts = loadSavedLayouts();
-    layouts.push({ name, ...serializeCurrentForm() });
-    persistSavedLayouts(layouts);
-    renderSavedLayouts();
+    const hasOverride = currentSetId && /^set\d+$/.test(currentSetId) && !!getSetOverride(currentSetId);
+    if(hasOverride){
+      // Reset this SET back to its original layout.
+      if(!window.confirm('Are you sure? This will reset this SET back to its original layout.')) return;
+      const id = currentSetId;
+      deleteSetOverride(id);
+      applySetOverridesToCards();
+      const cfg = PRESET_SETS.find(s => s.id === id);
+      if(cfg){ try{ presetToForm(cfg); }catch(e){} }
+      try{ buildCustomActiveSet(); }catch(e){}
+      if(activeSet){ activeSet.id = id; activeSet.tag = cfg ? cfg.tag : id; }
+      if(natW && activeSet){ setupCropBoxDims(); renderPage(); }
+      setEditBanner('Reset ' + (cfg ? cfg.tag : id) + ' to its original layout.');
+      updateSaveLayoutBtn();
+      return;
+    }
+    // Save the current layout into one of the SET slots.
+    const targetId = await chooseSetToSave();
+    if(!targetId) return;
+    setSetOverride(targetId, serializeCurrentForm());
+    applySetOverridesToCards();
+    const tcfg = PRESET_SETS.find(s => s.id === targetId);
+    setEditBanner('Saved the current layout into ' + (tcfg ? tcfg.tag : targetId) + '.');
+    currentSetId = targetId;
+    updateSaveLayoutBtn();
   }catch(err){ console.error('Save layout failed:', err); }
 });
 
+function updateSaveLayoutBtn(){
+  if(!saveLayoutBtn) return;
+  const label = document.getElementById('saveLayoutLabel');
+  const has = currentSetId && /^set\d+$/.test(currentSetId) && !!getSetOverride(currentSetId);
+  saveLayoutBtn.classList.toggle('is-reset', has);
+  if(label) label.textContent = has ? 'Reset this SET' : 'Save this layout for later';
+}
+
+function chooseSetToSave(){
+  return new Promise(resolve => {
+    const backdrop = document.getElementById('setPickerBackdrop');
+    const list = document.getElementById('setPickerList');
+    const cancelBtn = document.getElementById('setPickerCancel');
+    if(!backdrop || !list){ resolve(null); return; }
+
+    list.innerHTML = '';
+    PRESET_SETS.forEach(cfg => {
+      if(!/^set\d+$/.test(cfg.id)) return;
+      const item = document.createElement('div');
+      item.className = 'set-picker-item';
+      const hasOv = !!getSetOverride(cfg.id);
+      item.innerHTML = '<span class="set-tag">' + cfg.tag + '</span>'
+        + '<div class="set-desc">' + cfg.desc
+        + (hasOv ? ' <em style="font-weight:700;color:var(--accent-dark);">(will be replaced)</em>' : '')
+        + '</div>';
+      item.addEventListener('click', ()=>{ cleanup(); resolve(cfg.id); });
+      list.appendChild(item);
+    });
+    backdrop.classList.add('show');
+
+    function cleanup(){
+      backdrop.classList.remove('show');
+      if(cancelBtn) cancelBtn.removeEventListener('click', onCancel);
+      backdrop.removeEventListener('mousedown', onBackdrop);
+    }
+    function onCancel(){ cleanup(); resolve(null); }
+    function onBackdrop(e){ if(e.target === backdrop) onCancel(); }
+
+    if(cancelBtn) cancelBtn.addEventListener('click', onCancel);
+    backdrop.addEventListener('mousedown', onBackdrop);
+  });
+}
+
 renderSavedLayouts();
+
+// Show "(edited)" on any SET that already holds a saved layout (from a previous
+// session), and set the save/reset button state.
+try{ applySetOverridesToCards(); }catch(e){}
+try{ updateSaveLayoutBtn(); }catch(e){}
 
 function needsRectCrop(cfg){
   return cfg.sections && cfg.sections.some(s => s.shape === 'rect');
@@ -5598,21 +5705,67 @@ dropzone.addEventListener('drop', e=>{
 // Take one or many photos. In POLAROID mode every photo joins Saved photos
 // first, so nothing lands on the sheet until you drag one onto a frame or
 // press Tag all. The first photo also opens in the editor for framing.
+// Apply the "Receive from phone" toggles to any photo that is opened — by QR,
+// drag & drop, or click-to-choose.
+function applyReceiveAutoOptions(){
+  var autoPlace = document.getElementById('phoneAutoPlace');
+  var autoRemove = document.getElementById('phoneAutoRemoveBg');
+  window.__idplAutoPlace = !!(autoPlace && autoPlace.checked);
+  window.__idplAutoRemoveBg = !!(autoRemove && autoRemove.checked);
+  var autoLayout = document.getElementById('phoneAutoLayout');
+  if(autoLayout && autoLayout.checked){
+    var defSet = ''; try{ defSet = (typeof idplGetDefaultSet === 'function') ? idplGetDefaultSet() : ''; }catch(e){}
+    if(defSet && typeof selectSet === 'function'){ try{ selectSet(defSet); }catch(e){} }
+  }
+}
+
+// Persist the receive toggles across restarts. Auto-place and auto-remove
+// default ON; "Use assigned layout" defaults OFF until the user enables it.
+(function(){
+  try{
+    var cfg = {
+      phoneAutoPlace:      { key:'idpl_phone_autoplace',    def:true  },
+      phoneAutoRemoveBg:   { key:'idpl_phone_autoremove',   def:true  },
+      phoneAutoLayout:     { key:'idpl_phone_autolayout',   def:false }
+    };
+    Object.keys(cfg).forEach(function(id){
+      var el = document.getElementById(id);
+      if(!el) return;
+      var c = cfg[id];
+      try{
+        var v = localStorage.getItem(c.key);
+        el.checked = (v === null) ? c.def : (v === '1');
+      }catch(e){ el.checked = c.def; }
+      el.addEventListener('change', function(){ try{ localStorage.setItem(c.key, el.checked ? '1' : '0'); }catch(e){} });
+    });
+  }catch(e){}
+})();
+
 function openFiles(files){
   const imgs = (files || []).filter(f => f && f.type && f.type.indexOf('image/') === 0);
   if(!imgs.length) return;
+  // Drag & drop / click-to-choose also honour the auto toggles.
+  try{ applyReceiveAutoOptions(); }catch(e){}
   const polaroid = !!(activeSet && activeSet.id === 'polaroid');
-  if(!polaroid || imgs.length === 1){
+  var autoPlace = false;
+  try{ var ap = document.getElementById('phoneAutoPlace'); autoPlace = !!(ap && ap.checked); }catch(e){}
+
+  // Polaroid frames are filled by hand, so nothing auto-places there.
+  if(polaroid){
     openFile(imgs[0]);
-    if(polaroid){
-      // single photo in polaroid mode still goes to the library
-      imgs.slice(0, 1).forEach(f => stashPhoto(f));
-    }
-    if(imgs.length > 1) imgs.slice(1).forEach(f => stashPhoto(f));
+    imgs.forEach(f => stashPhoto(f));
     return;
   }
+
   openFile(imgs[0]);
-  imgs.forEach(f => stashPhoto(f));
+  if(autoPlace){
+    // Land every photo in Saved photos so the sheet can auto-fill, then place
+    // them — the same as the receive-from-phone flow.
+    imgs.forEach(f => stashPhoto(f));
+    setTimeout(function(){ try{ if(typeof placeReceivedIntoSheet === 'function') placeReceivedIntoSheet(); }catch(e){} }, 700);
+  } else if(imgs.length > 1){
+    imgs.slice(1).forEach(f => stashPhoto(f));
+  }
 }
 
 // Read a file and add it to Saved photos without touching the editor.
@@ -9212,16 +9365,9 @@ function placeReceivedIntoSheet(){
     try{
       var stage = document.getElementById('cropStage');
       var editing = !!(stage && getComputedStyle(stage).display !== 'none');
-      // Auto-apply the assigned (default) SET if asked.
-      var autoLayout = document.getElementById('phoneAutoLayout');
-      if(autoLayout && autoLayout.checked){
-        var defSet = ''; try{ defSet = (typeof idplGetDefaultSet === 'function') ? idplGetDefaultSet() : ''; }catch(e){}
-        if(defSet && typeof selectSet === 'function'){ try{ selectSet(defSet); }catch(e){} }
-      }
+      // Apply the assigned (default) SET and the auto toggles to this photo.
+      try{ applyReceiveAutoOptions(); }catch(e){}
       if(!editing && typeof openFile === 'function'){
-        var autoRemove = document.getElementById('phoneAutoRemoveBg');
-        window.__idplAutoRemoveBg = !!(autoRemove && autoRemove.checked);   // clean the background if asked
-        window.__idplAutoPlace = true;      // then place it on the sheet
         openFile(file);
       }
       if(typeof stashPhoto === 'function') stashPhoto(file, nm);
