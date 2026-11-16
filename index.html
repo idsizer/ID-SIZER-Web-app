@@ -2309,28 +2309,51 @@
           </div>
           <input type="file" id="b2bFrontInput" accept="image/*" style="display:none;">
           <input type="file" id="b2bBackInput" accept="image/*" style="display:none;">
-          <div class="form-row" style="margin-top:10px;">
+          <div class="custom-section-label" style="margin-top:10px;">Front fit</div>
+          <div class="form-row">
             <label>Zoom</label>
             <div style="display:flex;align-items:center;gap:8px;">
-              <input type="range" id="b2bImgZoom" min="100" max="300" value="100" style="flex:1;">
-              <span id="b2bImgZoomVal" style="font-size:11px;color:var(--muted);min-width:36px;text-align:right;">100%</span>
+              <input type="range" id="b2bFrontZoom" min="100" max="300" value="100" style="flex:1;">
+              <span id="b2bFrontZoomVal" style="font-size:11px;color:var(--muted);min-width:36px;text-align:right;">100%</span>
             </div>
           </div>
           <div class="form-row">
             <label>Move X</label>
             <div style="display:flex;align-items:center;gap:8px;">
-              <input type="range" id="b2bImgPanX" min="-50" max="50" value="0" style="flex:1;">
-              <span id="b2bImgPanXVal" style="font-size:11px;color:var(--muted);min-width:36px;text-align:right;">0</span>
+              <input type="range" id="b2bFrontPanX" min="-50" max="50" value="0" style="flex:1;">
+              <span id="b2bFrontPanXVal" style="font-size:11px;color:var(--muted);min-width:36px;text-align:right;">0</span>
             </div>
           </div>
           <div class="form-row">
             <label>Move Y</label>
             <div style="display:flex;align-items:center;gap:8px;">
-              <input type="range" id="b2bImgPanY" min="-50" max="50" value="0" style="flex:1;">
-              <span id="b2bImgPanYVal" style="font-size:11px;color:var(--muted);min-width:36px;text-align:right;">0</span>
+              <input type="range" id="b2bFrontPanY" min="-50" max="50" value="0" style="flex:1;">
+              <span id="b2bFrontPanYVal" style="font-size:11px;color:var(--muted);min-width:36px;text-align:right;">0</span>
             </div>
           </div>
-          <p class="group-note" style="margin:4px 0 0;">Zoom and slide the photo inside its card &mdash; hold <strong>Alt</strong> and drag on the card to move it, or use the sliders. Anything outside the card is hidden.</p>
+          <div class="custom-section-label" style="margin-top:10px;">Back fit</div>
+          <div class="form-row">
+            <label>Zoom</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="range" id="b2bBackZoom" min="100" max="300" value="100" style="flex:1;">
+              <span id="b2bBackZoomVal" style="font-size:11px;color:var(--muted);min-width:36px;text-align:right;">100%</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Move X</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="range" id="b2bBackPanX" min="-50" max="50" value="0" style="flex:1;">
+              <span id="b2bBackPanXVal" style="font-size:11px;color:var(--muted);min-width:36px;text-align:right;">0</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Move Y</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="range" id="b2bBackPanY" min="-50" max="50" value="0" style="flex:1;">
+              <span id="b2bBackPanYVal" style="font-size:11px;color:var(--muted);min-width:36px;text-align:right;">0</span>
+            </div>
+          </div>
+          <p class="group-note" style="margin:4px 0 0;">Zoom and slide the photo inside its card &mdash; hold <strong>Alt</strong> and drag on a card to move that photo, or use the sliders. Anything outside the card is hidden.</p>
           <div class="row" style="display:flex;gap:8px;align-items:center;margin:8px 0 2px;">
             <button type="button" class="btn-secondary btn-small" id="b2bAddCardBtn" style="margin:0;padding:6px 10px;font-size:11.5px;" data-i18n="b2bAddCard">+ Add this card</button>
             <span class="group-note" style="margin:0;">for a second, third&hellip; different ID</span>
@@ -4419,8 +4442,27 @@ let b2bCards = [];   // [{front, back, frontURL, backURL}]
 const B2B_GAP_SIDE  = 1;   // side by side
 const B2B_GAP_STACK = 2;   // top & bottom
 // Image fit inside the card frame: zoom (1 = cover-fit) and pan (fraction of the
-// card, -0.5..0.5) so the photo can be framed inside the invisible box.
-let b2bImgZoom = 1, b2bImgPanX = 0, b2bImgPanY = 0;
+// card, -0.5..0.5), kept separate for the front and back so each can be framed.
+let b2bFrontZoom = 1, b2bFrontPanX = 0, b2bFrontPanY = 0;
+let b2bBackZoom  = 1, b2bBackPanX  = 0, b2bBackPanY  = 0;
+// Reset the fit sliders and their value readouts to defaults (used after adding a card).
+function b2bResetFitUI(){
+  ['Front','Back'].forEach(function(side){
+    const p = 'b2b' + side;
+    const z = document.getElementById(p + 'Zoom');
+    const x = document.getElementById(p + 'PanX');
+    const y = document.getElementById(p + 'PanY');
+    const zv = document.getElementById(p + 'ZoomVal');
+    const xv = document.getElementById(p + 'PanXVal');
+    const yv = document.getElementById(p + 'PanYVal');
+    if(z) z.value = 100;
+    if(x) x.value = 0;
+    if(y) y.value = 0;
+    if(zv) zv.textContent = '100%';
+    if(xv) xv.textContent = '0';
+    if(yv) yv.textContent = '0';
+  });
+}
 // How far the user has dragged the layout from its default spot (inches).
 let b2bDragX = 0, b2bDragY = 0;
 // Arranging: every single image on the sheet can be moved on its own.
@@ -4535,10 +4577,14 @@ function renderB2BCards(){
 function drawB2BCell(P, dx, dy, w, h, blockIndex){
   // which of the different cards this block shows
   let cardFront = b2bFront, cardBack = b2bBack;
+  let fz = b2bFrontZoom, fpx = b2bFrontPanX, fpy = b2bFrontPanY;
+  let bz = b2bBackZoom, bpx = b2bBackPanX, bpy = b2bBackPanY;
   if(P.deck && P.deck.length){
     const idx = Math.min(P.deck.length - 1, Math.floor((blockIndex || 0) / (P.copies || 1)));
     const c = P.deck[idx] || {};
     cardFront = c.front; cardBack = c.back;
+    if(c.frontZoom != null){ fz = c.frontZoom; fpx = c.frontPanX; fpy = c.frontPanY; }
+    if(c.backZoom  != null){ bz = c.backZoom;  bpx = c.backPanX;  bpy = c.backPanY;  }
   }
   const gapPx = (P.gap || 0) * DPI;
   let fx, fy, fw, fh, bx, by, bw, bh;
@@ -4553,15 +4599,19 @@ function drawB2BCell(P, dx, dy, w, h, blockIndex){
     const off = b2bOffOf(blockIndex || 0, which);
     x += off.x * DPI; y += off.y * DPI;
     b2bRects.push({ which, idx: (blockIndex || 0), x, y, w: ww, h: hh });
+    const isBack = which === 'back';
+    const zoom = isBack ? bz : fz;
+    const panX = isBack ? bpx : fpx;
+    const panY = isBack ? bpy : fpy;
     if(image){
       if(flip){
         ctx.save();
         ctx.translate(x + ww/2, y + hh/2);
         ctx.rotate(Math.PI);
-        drawB2BSideImage(image, -ww/2, -hh/2, ww, hh);
+        drawB2BSideImage(image, -ww/2, -hh/2, ww, hh, zoom, panX, panY);
         ctx.restore();
       } else {
-        drawB2BSideImage(image, x, y, ww, hh);
+        drawB2BSideImage(image, x, y, ww, hh, zoom, panX, panY);
       }
     } else {
       drawEmptyCell(x, y, ww, hh);
@@ -4697,9 +4747,14 @@ if(b2bCanvasSize){
       return;
     }
     b2bCards.push({ front:b2bFront, back:b2bBack,
-                    frontURL: b2bFront ? b2bFront.__url : '', backURL: b2bBack ? b2bBack.__url : '' });
-    // clear the boxes ready for the next card
+                    frontURL: b2bFront ? b2bFront.__url : '', backURL: b2bBack ? b2bBack.__url : '',
+                    frontZoom: b2bFrontZoom, frontPanX: b2bFrontPanX, frontPanY: b2bFrontPanY,
+                    backZoom: b2bBackZoom, backPanX: b2bBackPanX, backPanY: b2bBackPanY });
+    // clear the boxes and reset the fit ready for the next card
     b2bFront = null; b2bBack = null;
+    b2bFrontZoom = 1; b2bFrontPanX = 0; b2bFrontPanY = 0;
+    b2bBackZoom = 1; b2bBackPanX = 0; b2bBackPanY = 0;
+    b2bResetFitUI();
     ['Front','Back'].forEach(function(w){
       const d = document.getElementById('b2b' + w + 'Drop');
       const t = document.getElementById('b2b' + w + 'Thumb');
@@ -4713,26 +4768,43 @@ if(b2bCanvasSize){
 })();
 
 if(b2bApplyBtn) b2bApplyBtn.addEventListener('click', buildB2BActiveSet);
-// Image-fit sliders: zoom + pan the photo inside its card frame.
+// Image-fit sliders: zoom + pan the front and back photos in their cards.
 (function(){
-  const zoom = document.getElementById('b2bImgZoom');
-  const panX = document.getElementById('b2bImgPanX');
-  const panY = document.getElementById('b2bImgPanY');
-  const zVal = document.getElementById('b2bImgZoomVal');
-  const xVal = document.getElementById('b2bImgPanXVal');
-  const yVal = document.getElementById('b2bImgPanYVal');
+  const el = (id) => document.getElementById(id);
+  const sides = {
+    front: { zoom:'b2bFrontZoom', panX:'b2bFrontPanX', panY:'b2bFrontPanY', zVal:'b2bFrontZoomVal', xVal:'b2bFrontPanXVal', yVal:'b2bFrontPanYVal' },
+    back:  { zoom:'b2bBackZoom',  panX:'b2bBackPanX',  panY:'b2bBackPanY',  zVal:'b2bBackZoomVal',  xVal:'b2bBackPanXVal',  yVal:'b2bBackPanYVal' }
+  };
   function apply(){
-    b2bImgZoom = zoom ? (parseInt(zoom.value, 10) || 100) / 100 : 1;
-    b2bImgPanX = panX ? (parseInt(panX.value, 10) || 0) / 100 : 0;
-    b2bImgPanY = panY ? (parseInt(panY.value, 10) || 0) / 100 : 0;
-    if(zVal) zVal.textContent = Math.round(b2bImgZoom * 100) + '%';
-    if(xVal) xVal.textContent = Math.round(b2bImgPanX * 100);
-    if(yVal) yVal.textContent = Math.round(b2bImgPanY * 100);
+    ['front','back'].forEach(function(side){
+      const s = sides[side];
+      const zoom = el(s.zoom), panX = el(s.panX), panY = el(s.panY);
+      const zVal = el(s.zVal), xVal = el(s.xVal), yVal = el(s.yVal);
+      if(side === 'front'){
+        b2bFrontZoom = zoom ? (parseInt(zoom.value, 10) || 100) / 100 : 1;
+        b2bFrontPanX = panX ? (parseInt(panX.value, 10) || 0) / 100 : 0;
+        b2bFrontPanY = panY ? (parseInt(panY.value, 10) || 0) / 100 : 0;
+        if(zVal) zVal.textContent = Math.round(b2bFrontZoom * 100) + '%';
+        if(xVal) xVal.textContent = Math.round(b2bFrontPanX * 100);
+        if(yVal) yVal.textContent = Math.round(b2bFrontPanY * 100);
+      } else {
+        b2bBackZoom = zoom ? (parseInt(zoom.value, 10) || 100) / 100 : 1;
+        b2bBackPanX = panX ? (parseInt(panX.value, 10) || 0) / 100 : 0;
+        b2bBackPanY = panY ? (parseInt(panY.value, 10) || 0) / 100 : 0;
+        if(zVal) zVal.textContent = Math.round(b2bBackZoom * 100) + '%';
+        if(xVal) xVal.textContent = Math.round(b2bBackPanX * 100);
+        if(yVal) yVal.textContent = Math.round(b2bBackPanY * 100);
+      }
+    });
     if(activeSet && activeSet.id === 'b2b' && typeof renderPage === 'function') renderPage();
   }
-  if(zoom) zoom.addEventListener('input', apply);
-  if(panX) panX.addEventListener('input', apply);
-  if(panY) panY.addEventListener('input', apply);
+  ['front','back'].forEach(function(side){
+    const s = sides[side];
+    const zoom = el(s.zoom), panX = el(s.panX), panY = el(s.panY);
+    if(zoom) zoom.addEventListener('input', apply);
+    if(panX) panX.addEventListener('input', apply);
+    if(panY) panY.addEventListener('input', apply);
+  });
 })();
 (function(){
   const rp = document.getElementById('b2bResetPosBtn');
@@ -4771,19 +4843,23 @@ if(b2bApplyBtn) b2bApplyBtn.addEventListener('click', buildB2BActiveSet);
       h: Math.max(0.3, parseFloat(b2bH && b2bH.value) || 2.125)
     };
   }
-  function syncPanSliders(){
-    const zoom = document.getElementById('b2bImgZoom');
-    const panX = document.getElementById('b2bImgPanX');
-    const panY = document.getElementById('b2bImgPanY');
-    const zVal = document.getElementById('b2bImgZoomVal');
-    const xVal = document.getElementById('b2bImgPanXVal');
-    const yVal = document.getElementById('b2bImgPanYVal');
-    if(zoom) zoom.value = Math.round(b2bImgZoom * 100);
-    if(panX) panX.value = Math.round(b2bImgPanX * 100);
-    if(panY) panY.value = Math.round(b2bImgPanY * 100);
-    if(zVal) zVal.textContent = Math.round(b2bImgZoom * 100) + '%';
-    if(xVal) xVal.textContent = Math.round(b2bImgPanX * 100);
-    if(yVal) yVal.textContent = Math.round(b2bImgPanY * 100);
+  function syncPanSliders(side){
+    const isBack = side === 'back';
+    const zoom = document.getElementById(isBack ? 'b2bBackZoom' : 'b2bFrontZoom');
+    const panX = document.getElementById(isBack ? 'b2bBackPanX' : 'b2bFrontPanX');
+    const panY = document.getElementById(isBack ? 'b2bBackPanY' : 'b2bFrontPanY');
+    const zVal = document.getElementById(isBack ? 'b2bBackZoomVal' : 'b2bFrontZoomVal');
+    const xVal = document.getElementById(isBack ? 'b2bBackPanXVal' : 'b2bFrontPanXVal');
+    const yVal = document.getElementById(isBack ? 'b2bBackPanYVal' : 'b2bFrontPanYVal');
+    const z = isBack ? b2bBackZoom : b2bFrontZoom;
+    const px = isBack ? b2bBackPanX : b2bFrontPanX;
+    const py = isBack ? b2bBackPanY : b2bFrontPanY;
+    if(zoom) zoom.value = Math.round(z * 100);
+    if(panX) panX.value = Math.round(px * 100);
+    if(panY) panY.value = Math.round(py * 100);
+    if(zVal) zVal.textContent = Math.round(z * 100) + '%';
+    if(xVal) xVal.textContent = Math.round(px * 100);
+    if(yVal) yVal.textContent = Math.round(py * 100);
   }
 
   let dragKey = null;
@@ -4796,7 +4872,9 @@ if(b2bApplyBtn) b2bApplyBtn.addEventListener('click', buildB2BActiveSet);
     dragKey = itemAt(e.clientX, e.clientY);
     panMode = !!(e.altKey && dragKey);   // Alt+drag on a card pans the photo in it
     startX = p.x; startY = p.y;
-    basePanX = b2bImgPanX; basePanY = b2bImgPanY;
+    const dragSide = dragKey ? dragKey.split(':')[1] : 'front';
+    basePanX = (dragSide === 'back') ? b2bBackPanX : b2bFrontPanX;
+    basePanY = (dragSide === 'back') ? b2bBackPanY : b2bFrontPanY;
     if(dragKey){
       const o = b2bItemOff[dragKey] || { x:0, y:0 };
       baseX = o.x; baseY = o.y;
@@ -4812,9 +4890,12 @@ if(b2bApplyBtn) b2bApplyBtn.addEventListener('click', buildB2BActiveSet);
     const dx = p.x - startX, dy = p.y - startY;
     if(panMode){
       const wh = cardWH();
-      b2bImgPanX = Math.max(-0.5, Math.min(0.5, basePanX + dx / wh.w));
-      b2bImgPanY = Math.max(-0.5, Math.min(0.5, basePanY + dy / wh.h));
-      syncPanSliders();
+      const side = dragKey ? dragKey.split(':')[1] : 'front';
+      const nx = Math.max(-0.5, Math.min(0.5, basePanX + dx / wh.w));
+      const ny = Math.max(-0.5, Math.min(0.5, basePanY + dy / wh.h));
+      if(side === 'back'){ b2bBackPanX = nx; b2bBackPanY = ny; }
+      else { b2bFrontPanX = nx; b2bFrontPanY = ny; }
+      syncPanSliders(side);
       renderPage();
     } else if(dragKey){
       b2bItemOff[dragKey] = { x: baseX + dx, y: baseY + dy };
@@ -7260,7 +7341,7 @@ function drawCoverImage(image, dx, dy, w, h){
 }
 // Draw a back-to-back card side clipped to its frame, with zoom + pan so the
 // photo can be framed inside the invisible box. Anything outside is hidden.
-function drawB2BSideImage(image, dx, dy, w, h){
+function drawB2BSideImage(image, dx, dy, w, h, zoom, panX, panY){
   try{
     const iw = image.naturalWidth || image.width, ih = image.naturalHeight || image.height;
     if(!iw || !ih) return;
@@ -7271,10 +7352,10 @@ function drawB2BSideImage(image, dx, dy, w, h){
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(dx, dy, w, h);
     const coverScale = Math.max(w/iw, h/ih);
-    const scale = coverScale * b2bImgZoom;
+    const scale = coverScale * (zoom || 1);
     const dw = iw * scale, dh = ih * scale;
-    const ddx = dx + (w - dw)/2 + b2bImgPanX * w;
-    const ddy = dy + (h - dh)/2 + b2bImgPanY * h;
+    const ddx = dx + (w - dw)/2 + (panX || 0) * w;
+    const ddy = dy + (h - dh)/2 + (panY || 0) * h;
     ctx.drawImage(image, ddx, ddy, dw, dh);
     ctx.restore();
   }catch(e){}
