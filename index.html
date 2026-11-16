@@ -4265,12 +4265,24 @@ customCanvasSize.addEventListener('change', ()=>{
 
 function rowDims(rowEl){
   const v = rowEl.querySelector('.row-photo-size').value;
-  if(v === '1x1') return {w:1, h:1};
-  if(v === '2x2') return {w:2, h:2};
-  if(v === 'passport') return {w:PP_W, h:PP_H};
-  const w = parseFloat(rowEl.querySelector('.row-photo-w').value) || 1;
-  const h = parseFloat(rowEl.querySelector('.row-photo-h').value) || 1;
-  return {w, h};
+  let w, h;
+  if(v === '1x1'){ w = 1; h = 1; }
+  else if(v === '2x2'){ w = 2; h = 2; }
+  else if(v === 'passport'){ w = PP_W; h = PP_H; }
+  else {
+    w = parseFloat(rowEl.querySelector('.row-photo-w').value) || 1;
+    h = parseFloat(rowEl.querySelector('.row-photo-h').value) || 1;
+  }
+  // Auto-landscape: when a size doesn't fit the canvas as typed but fits turned
+  // sideways, lay it out sideways so it still lands on the sheet (and the
+  // framing box follows the same orientation).
+  try{
+    const c = canvasDimsFromForm();
+    if((w > c.w || h > c.h) && (h <= c.w && w <= c.h)){
+      const t = w; w = h; h = t;
+    }
+  }catch(e){}
+  return { w, h };
 }
 function rowQty(rowEl){
   return Math.max(1, parseInt(rowEl.querySelector('.row-qty').value) || 1);
