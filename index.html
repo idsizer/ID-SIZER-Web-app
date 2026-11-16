@@ -2330,7 +2330,7 @@
               <span id="b2bImgPanYVal" style="font-size:11px;color:var(--muted);min-width:36px;text-align:right;">0</span>
             </div>
           </div>
-          <p class="group-note" style="margin:4px 0 0;">Zoom and slide the photo inside its card &mdash; anything outside the card is hidden.</p>
+          <p class="group-note" style="margin:4px 0 0;">Zoom and slide the photo inside its card &mdash; hold <strong>Alt</strong> and drag on the card to move it, or use the sliders. Anything outside the card is hidden.</p>
           <div class="row" style="display:flex;gap:8px;align-items:center;margin:8px 0 2px;">
             <button type="button" class="btn-secondary btn-small" id="b2bAddCardBtn" style="margin:0;padding:6px 10px;font-size:11.5px;" data-i18n="b2bAddCard">+ Add this card</button>
             <span class="group-note" style="margin:0;">for a second, third&hellip; different ID</span>
@@ -4576,14 +4576,14 @@ function drawB2BCell(P, dx, dy, w, h, blockIndex){
     }
     ctx.save();
     ctx.strokeStyle = 'rgba(0,0,0,.22)'; ctx.lineWidth = 1;
-    ctx.strokeRect(x + 0.5, y + 0.5, ww - 1, hh - 1);
+    if(!__hideGuides) ctx.strokeRect(x + 0.5, y + 0.5, ww - 1, hh - 1);
     ctx.restore();
   };
   side(cardFront, fx, fy, fw, fh, 'FRONT', false, 'front');
   side(cardBack,  bx, by, bw, bh, 'BACK',  !!P.flip && P.style === 'stack', 'back');
 
   // the line where they are cut apart or folded (hidden once anything is moved)
-  if(b2bAnyMoved()) return;
+  if(b2bAnyMoved() || __hideGuides) return;
   ctx.save();
   ctx.strokeStyle = '#c8202b';
   ctx.setLineDash([6, 5]);
@@ -4745,11 +4745,11 @@ if(b2bApplyBtn) b2bApplyBtn.addEventListener('click', buildB2BActiveSet);
   });
 })();
 
-// ---- drag the cards around the sheet ----
+// ---- drag the cards around the sheet (Alt+drag pans the photo in its card) ----
 (function(){
   const pc = document.getElementById('pageCanvas');
   if(!pc) return;
-  let dragging = false, startX = 0, startY = 0, baseX = 0, baseY = 0;
+  let dragging = false, panMode = false, startX = 0, startY = 0, baseX = 0, baseY = 0, basePanX = 0, basePanY = 0;
   const inB2B = () => !!(activeSet && activeSet.id === 'b2b');
 
   function itemAt(clientX, clientY){
@@ -4765,6 +4765,26 @@ if(b2bApplyBtn) b2bApplyBtn.addEventListener('click', buildB2BActiveSet);
     }
     return null;
   }
+  function cardWH(){
+    return {
+      w: Math.max(0.3, parseFloat(b2bW && b2bW.value) || 3.375),
+      h: Math.max(0.3, parseFloat(b2bH && b2bH.value) || 2.125)
+    };
+  }
+  function syncPanSliders(){
+    const zoom = document.getElementById('b2bImgZoom');
+    const panX = document.getElementById('b2bImgPanX');
+    const panY = document.getElementById('b2bImgPanY');
+    const zVal = document.getElementById('b2bImgZoomVal');
+    const xVal = document.getElementById('b2bImgPanXVal');
+    const yVal = document.getElementById('b2bImgPanYVal');
+    if(zoom) zoom.value = Math.round(b2bImgZoom * 100);
+    if(panX) panX.value = Math.round(b2bImgPanX * 100);
+    if(panY) panY.value = Math.round(b2bImgPanY * 100);
+    if(zVal) zVal.textContent = Math.round(b2bImgZoom * 100) + '%';
+    if(xVal) xVal.textContent = Math.round(b2bImgPanX * 100);
+    if(yVal) yVal.textContent = Math.round(b2bImgPanY * 100);
+  }
 
   let dragKey = null;
 
@@ -4774,12 +4794,14 @@ if(b2bApplyBtn) b2bApplyBtn.addEventListener('click', buildB2BActiveSet);
     if(!p) return;
     dragging = true;
     dragKey = itemAt(e.clientX, e.clientY);
+    panMode = !!(e.altKey && dragKey);   // Alt+drag on a card pans the photo in it
     startX = p.x; startY = p.y;
+    basePanX = b2bImgPanX; basePanY = b2bImgPanY;
     if(dragKey){
       const o = b2bItemOff[dragKey] || { x:0, y:0 };
       baseX = o.x; baseY = o.y;
     } else { baseX = b2bDragX; baseY = b2bDragY; }
-    pc.style.cursor = 'grabbing';
+    pc.style.cursor = panMode ? 'move' : 'grabbing';
   });
 
   pc.addEventListener('mousemove', e => {
@@ -4788,7 +4810,13 @@ if(b2bApplyBtn) b2bApplyBtn.addEventListener('click', buildB2BActiveSet);
     const p = canvasPointFromClient(e.clientX, e.clientY);
     if(!p) return;
     const dx = p.x - startX, dy = p.y - startY;
-    if(dragKey){
+    if(panMode){
+      const wh = cardWH();
+      b2bImgPanX = Math.max(-0.5, Math.min(0.5, basePanX + dx / wh.w));
+      b2bImgPanY = Math.max(-0.5, Math.min(0.5, basePanY + dy / wh.h));
+      syncPanSliders();
+      renderPage();
+    } else if(dragKey){
       b2bItemOff[dragKey] = { x: baseX + dx, y: baseY + dy };
       renderPage();
     } else {
@@ -4798,7 +4826,7 @@ if(b2bApplyBtn) b2bApplyBtn.addEventListener('click', buildB2BActiveSet);
   });
 
   window.addEventListener('mouseup', () => {
-    if(dragging){ dragging = false; dragKey = null; pc.style.cursor = inB2B() ? 'grab' : ''; b2bPushHistory(); }
+    if(dragging){ dragging = false; if(!panMode) b2bPushHistory(); panMode = false; dragKey = null; pc.style.cursor = inB2B() ? 'grab' : ''; }
   });
 
   // double-click puts the cards back to their default spot
@@ -7156,6 +7184,7 @@ function squareSourceRect(){
 }
 
 function drawGridLines(x, y, cellW, cellH, cols, rows){
+  if(__hideGuides) return;
   ctx.strokeStyle = '#bbbbbb';
   ctx.lineWidth = 1;
   for(let c=0;c<=cols;c++){
@@ -7174,6 +7203,8 @@ function drawGridLines(x, y, cellW, cellH, cols, rows){
 
 const CUT_SAFETY_IN = 0; // no gap between each photo and its cut line
 let SHEET_GAP_IN = 0;    // photos always touch — one shared cut (Connected removed)
+// When true, cut/guide lines are skipped so the printed/downloaded sheet is clean.
+let __hideGuides = false;
 
 // ---------- ID name tag ----------
 let NAMETAG_BAND_RATIO = 0.16; // white bar height, as a share of the photo height
@@ -8195,13 +8226,15 @@ function drawSection(section, pageWpx){
   }
   if(SHEET_GAP_IN > 0){
     // Spaced: draw a cut box around each photo instead of a shared grid.
-    ctx.strokeStyle = '#bbbbbb'; ctx.lineWidth = 1;
-    let n2 = 0;
-    for(let r = 0; r < section.rows; r++){
-      for(let c = 0; c < section.cols; c++){
-        if(n2 >= limit) break;
-        n2++;
-        ctx.strokeRect(xpx + c*pitchW + inset, ypx + r*pitchH + inset, photoWpx, photoHpx);
+    if(!__hideGuides){
+      ctx.strokeStyle = '#bbbbbb'; ctx.lineWidth = 1;
+      let n2 = 0;
+      for(let r = 0; r < section.rows; r++){
+        for(let c = 0; c < section.cols; c++){
+          if(n2 >= limit) break;
+          n2++;
+          ctx.strokeRect(xpx + c*pitchW + inset, ypx + r*pitchH + inset, photoWpx, photoHpx);
+        }
       }
     }
   } else {
@@ -8641,22 +8674,20 @@ function idplComposeSheetDataURL(withMark){
 }
 
 function idplSheetDataURL(withMark){
-  // In arrange mode the selected photos carry a dashed red border. It is an
-  // editing aid, so redraw the sheet without it before grabbing the bitmap,
-  // then put the preview back exactly as the user sees it. The redraw is
-  // synchronous, so the user never sees the intermediate frame.
-  if(arrangeMode && selection.size){
-    idplExporting = true;
-    idplHideSelection = true;
-    try{
-      renderPage();
-      return idplComposeSheetDataURL(withMark);
-    }finally{
-      idplHideSelection = false;
-      try{ renderPage(); }finally{ idplExporting = false; }
-    }
+  // Hide the editing aids (selection box + cut/guide lines) before grabbing the
+  // bitmap, then put the preview back exactly as the user sees it. The redraw
+  // is synchronous, so the user never sees the intermediate frame.
+  idplExporting = true;
+  __hideGuides = true;
+  idplHideSelection = true;
+  try{
+    renderPage();
+    return idplComposeSheetDataURL(withMark);
+  }finally{
+    __hideGuides = false;
+    idplHideSelection = false;
+    try{ renderPage(); }finally{ idplExporting = false; }
   }
-  return idplComposeSheetDataURL(withMark);
 }
 
 // Refresh the print-only bitmap in the background, after the UI has settled.
