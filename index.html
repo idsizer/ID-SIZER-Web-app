@@ -2172,41 +2172,7 @@
         </div>
       </div>
     </div>
-  </section>
-
-  <div class="cols">
-
-    <!-- ============ STEP 2 ============ -->
-    <section class="panel">
-      <h2 data-step="2" data-i18n="step2" id="step2Heading">Add &amp; edit your photo</h2>
-      <div class="panel-body" id="editPanelBody">
-
-        <div id="b2bNote" style="display:none;">
-          <p class="group-note" style="margin:0;">Add the <strong>front</strong> and <strong>back</strong> images below, choose the card size and layout, then press <strong>Use this layout</strong>.</p>
-        </div>
-
-        <div class="custom-form" id="b2bForm">
-          <h3 class="custom-section-label" data-i18n="b2bTitle">Front &amp; back images</h3>
-          <div class="b2b-drops">
-            <div class="b2b-drop" id="b2bFrontDrop">
-              <span class="b2b-side" data-i18n="b2bFront">FRONT</span>
-              <span class="b2b-hint">drop or click</span>
-              <img id="b2bFrontThumb" alt="">
-            </div>
-            <div class="b2b-drop" id="b2bBackDrop">
-              <span class="b2b-side" data-i18n="b2bBack">BACK</span>
-              <span class="b2b-hint">drop or click</span>
-              <img id="b2bBackThumb" alt="">
-            </div>
-          </div>
-          <input type="file" id="b2bFrontInput" accept="image/*" style="display:none;">
-          <input type="file" id="b2bBackInput" accept="image/*" style="display:none;">
-          <div class="row" style="display:flex;gap:8px;align-items:center;margin:8px 0 2px;">
-            <button type="button" class="btn-secondary btn-small" id="b2bAddCardBtn" style="margin:0;padding:6px 10px;font-size:11.5px;" data-i18n="b2bAddCard">+ Add this card</button>
-            <span class="group-note" style="margin:0;">for a second, third&hellip; different ID</span>
-          </div>
-          <div id="b2bCardList" class="b2b-cards"></div>
-
+      <div class="custom-form" id="b2bSizeForm">
           <h3 class="custom-section-label" data-i18n="b2bCardSize">Card size</h3>
           <div class="form-row">
             <label>Size (in)</label>
@@ -2265,6 +2231,42 @@
           </div>
           <div class="custom-error" id="b2bError"></div>
         </div>
+  </section>
+
+  <div class="cols">
+
+    <!-- ============ STEP 2 ============ -->
+    <section class="panel">
+      <h2 data-step="2" data-i18n="step2" id="step2Heading">Add &amp; edit your photo</h2>
+      <div class="panel-body" id="editPanelBody">
+
+        <div id="b2bNote" style="display:none;">
+          <p class="group-note" style="margin:0;">Add the <strong>front</strong> and <strong>back</strong> images below, then choose the card size and layout on the left and press <strong>Use this layout</strong>.</p>
+        </div>
+
+        <div class="custom-form" id="b2bForm">
+          <h3 class="custom-section-label" data-i18n="b2bTitle">Front &amp; back images</h3>
+          <div class="b2b-drops">
+            <div class="b2b-drop" id="b2bFrontDrop">
+              <span class="b2b-side" data-i18n="b2bFront">FRONT</span>
+              <span class="b2b-hint">drop or click</span>
+              <img id="b2bFrontThumb" alt="">
+            </div>
+            <div class="b2b-drop" id="b2bBackDrop">
+              <span class="b2b-side" data-i18n="b2bBack">BACK</span>
+              <span class="b2b-hint">drop or click</span>
+              <img id="b2bBackThumb" alt="">
+            </div>
+          </div>
+          <input type="file" id="b2bFrontInput" accept="image/*" style="display:none;">
+          <input type="file" id="b2bBackInput" accept="image/*" style="display:none;">
+          <div class="row" style="display:flex;gap:8px;align-items:center;margin:8px 0 2px;">
+            <button type="button" class="btn-secondary btn-small" id="b2bAddCardBtn" style="margin:0;padding:6px 10px;font-size:11.5px;" data-i18n="b2bAddCard">+ Add this card</button>
+            <span class="group-note" style="margin:0;">for a second, third&hellip; different ID</span>
+          </div>
+          <div id="b2bCardList" class="b2b-cards"></div>
+
+                  </div>
 
         <div id="dropzone">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15.5V18a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2.5"/><path d="M12 15.5V3.5"/><path d="M7.5 8 12 3.5 16.5 8"/></svg>
@@ -4004,11 +4006,13 @@ function selectSet(id){
   document.body.classList.toggle('polaroid-mode', !!cfg.isPolaroid);
   document.body.classList.toggle('b2b-mode', !!cfg.isB2B);
   if(!cfg.isB2B && b2bForm) b2bForm.classList.remove('show');
+  if(!cfg.isB2B && b2bSizeForm) b2bSizeForm.classList.remove('show');
   if(cfg.isB2B){
     customForm.classList.remove('show');
     if(polaroidForm) polaroidForm.classList.remove('show');
     exitDualMode();
     if(b2bForm) b2bForm.classList.add('show');
+    if(b2bSizeForm) b2bSizeForm.classList.add('show');
     let ok = true;
     if(!activeSet || activeSet.id !== 'b2b'){ try{ ok = buildB2BActiveSet(); }catch(e){ ok = false; } }
     if(!ok) clearPreview();
@@ -4298,6 +4302,7 @@ function b2bApplySnapshot(sn){
 function b2bUndo(){ if(b2bHi > 0){ b2bHi--; b2bApplySnapshot(b2bHist[b2bHi]); return true; } return false; }
 function b2bRedo(){ if(b2bHi < b2bHist.length - 1){ b2bHi++; b2bApplySnapshot(b2bHist[b2bHi]); return true; } return false; }
 const b2bForm        = document.getElementById('b2bForm');
+const b2bSizeForm    = document.getElementById('b2bSizeForm');
 const b2bW           = document.getElementById('b2bW');
 const b2bH           = document.getElementById('b2bH');
 const b2bStyle       = document.getElementById('b2bStyle');
