@@ -2292,6 +2292,7 @@
               <button type="button" id="phoneNewCode">New code</button>
             </div>
             <label class="phone-toggle"><input type="checkbox" id="phoneAutoPlace" checked> Auto-place photos in the sheet</label>
+            <label class="phone-toggle"><input type="checkbox" id="phoneAutoRemoveBg" checked> Auto-remove background</label>
             <p class="phone-note" id="phoneNote">Photos auto-place in the sheet and land in <strong>Saved photos</strong>.</p>
           </div>
         </div>
@@ -9132,7 +9133,8 @@ function placeReceivedIntoSheet(){
       var stage = document.getElementById('cropStage');
       var editing = !!(stage && getComputedStyle(stage).display !== 'none');
       if(!editing && typeof openFile === 'function'){
-        window.__idplAutoRemoveBg = true;   // clean the background automatically
+        var autoRemove = document.getElementById('phoneAutoRemoveBg');
+        window.__idplAutoRemoveBg = !!(autoRemove && autoRemove.checked);   // clean the background if asked
         window.__idplAutoPlace = true;      // then place it on the sheet
         openFile(file);
       }
