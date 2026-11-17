@@ -2353,7 +2353,7 @@
               <span id="b2bBackPanYVal" style="font-size:11px;color:var(--muted);min-width:36px;text-align:right;">0</span>
             </div>
           </div>
-          <p class="group-note" style="margin:4px 0 0;">Zoom and slide the photo inside its card &mdash; hold <strong>Alt</strong> and drag on a card to move that photo, or use the sliders. Anything outside the card is hidden.</p>
+          <p class="group-note" style="margin:4px 0 0;">Zoom and slide the photo inside its card &mdash; drag directly on a card to move that photo, or use the sliders. Anything outside the card is hidden.</p>
           <div class="row" style="display:flex;gap:8px;align-items:center;margin:8px 0 2px;">
             <button type="button" class="btn-secondary btn-small" id="b2bAddCardBtn" style="margin:0;padding:6px 10px;font-size:11.5px;" data-i18n="b2bAddCard">+ Add this card</button>
             <span class="group-note" style="margin:0;">for a second, third&hellip; different ID</span>
@@ -4671,26 +4671,21 @@ function buildB2BActiveSet(){
     return false;
   }
 
-  const grid = computeGrid(qty, blockW, blockH, canvas.w, canvas.h - margin*2, null);
-  if(!grid){
-    // work out how many DO fit so the message is useful
+  // Stack the cards vertically, one below the next.
+  const cols = 1;
+  const rows = qty;
+  const usedW = cols * blockW, usedH = rows * blockH;
+  if(usedH > canvas.h - margin*2){
     let fits = 0;
-    for(let n = qty - 1; n >= 1; n--){
-      if(computeGrid(n, blockW, blockH, canvas.w, canvas.h - margin*2, null)){ fits = n; break; }
-    }
+    for(let n = qty - 1; n >= 1; n--){ if(n * blockH <= canvas.h - margin*2){ fits = n; break; } }
     if(b2bError){
       b2bError.textContent = fits
-        ? (qty + ' cards do not fit on a ' + canvas.w + '\u00d7' + canvas.h + 'in sheet \u2014 only ' + fits +
-           ' fit. Set the quantity to ' + fits + ', switch the pair layout, or use a bigger canvas.')
+        ? (qty + ' cards do not fit stacked on a ' + canvas.w + '\u00d7' + canvas.h + 'in sheet \u2014 only ' + fits + ' fit. Use fewer cards or a bigger canvas.')
         : ('Even one card does not fit on a ' + canvas.w + '\u00d7' + canvas.h + 'in sheet. Use a bigger canvas or a smaller card.');
       b2bError.classList.add('show');
     }
     return false;
   }
-
-  const cols = Math.min(grid.cols, qty);
-  const rows = Math.ceil(qty / cols);
-  const usedW = cols * blockW, usedH = rows * blockH;
 
   // Where the layout sits by default:
   //   side by side  -> across the top of the sheet
@@ -4817,7 +4812,7 @@ if(b2bApplyBtn) b2bApplyBtn.addEventListener('click', buildB2BActiveSet);
   });
 })();
 
-// ---- drag the cards around the sheet (Alt+drag pans the photo in its card) ----
+// ---- drag a card to pan its photo, drag empty space to move everything ----
 (function(){
   const pc = document.getElementById('pageCanvas');
   if(!pc) return;
@@ -4870,15 +4865,12 @@ if(b2bApplyBtn) b2bApplyBtn.addEventListener('click', buildB2BActiveSet);
     if(!p) return;
     dragging = true;
     dragKey = itemAt(e.clientX, e.clientY);
-    panMode = !!(e.altKey && dragKey);   // Alt+drag on a card pans the photo in it
+    panMode = !!dragKey;   // dragging on a card pans its photo beneath the frame
     startX = p.x; startY = p.y;
     const dragSide = dragKey ? dragKey.split(':')[1] : 'front';
     basePanX = (dragSide === 'back') ? b2bBackPanX : b2bFrontPanX;
     basePanY = (dragSide === 'back') ? b2bBackPanY : b2bFrontPanY;
-    if(dragKey){
-      const o = b2bItemOff[dragKey] || { x:0, y:0 };
-      baseX = o.x; baseY = o.y;
-    } else { baseX = b2bDragX; baseY = b2bDragY; }
+    baseX = b2bDragX; baseY = b2bDragY;
     pc.style.cursor = panMode ? 'move' : 'grabbing';
   });
 
@@ -4896,9 +4888,6 @@ if(b2bApplyBtn) b2bApplyBtn.addEventListener('click', buildB2BActiveSet);
       if(side === 'back'){ b2bBackPanX = nx; b2bBackPanY = ny; }
       else { b2bFrontPanX = nx; b2bFrontPanY = ny; }
       syncPanSliders(side);
-      renderPage();
-    } else if(dragKey){
-      b2bItemOff[dragKey] = { x: baseX + dx, y: baseY + dy };
       renderPage();
     } else {
       b2bDragX = baseX + dx; b2bDragY = baseY + dy;
