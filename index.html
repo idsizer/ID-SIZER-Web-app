@@ -4657,7 +4657,13 @@ function buildB2BActiveSet(){
   const copies = Math.max(1, parseInt(b2bQty && b2bQty.value, 10) || 1);
   // Every different card gets `copies` blocks. With no cards added yet the
   // pair currently in the drop boxes is used.
-  const deck = b2bCards.length ? b2bCards : [{ front:b2bFront, back:b2bBack }];
+  const deck = b2bCards.slice();
+  if(b2bFront || b2bBack){
+    // The card in the drop boxes is a live preview: it carries no stored fit,
+    // so it follows the sliders / drag in real time until you click Add.
+    deck.push({ front:b2bFront, back:b2bBack });
+  }
+  if(!deck.length) deck.push({ front:null, back:null });
   const qty = deck.length * copies;
   const canvas = b2bCanvasDims();
 
