@@ -6275,7 +6275,7 @@ function setCleanupStrength(v){
   MASK_HI = Math.min(0.98, MASK_LO + 0.30);
 }
 const BLOB_KEEP_FRACTION = 0.01; // keep blobs at least 1% the size of the biggest
-const EDGE_GROW_PASSES = 3;      // px of slack so soft hair edges survive
+const EDGE_GROW_PASSES = 1;      // px of slack so soft hair edges survive (kept small to avoid a halo)
 
 // The curve alone can't remove speckle: a plain backdrop makes the model
 // hesitant and it scatters hundreds of small confident-looking blobs across
@@ -6576,7 +6576,11 @@ function applyCutOut(firstTime){
   cx.globalCompositeOperation = 'destination-in';
   cx.imageSmoothingEnabled = true;
   cx.imageSmoothingQuality = 'high';
+  // A hair of blur on the mask softens stair-stepped edges so the cut-out
+  // looks natural instead of jagged.
+  try{ cx.filter = 'blur(0.4px)'; }catch(e){}
   cx.drawImage(maskC, 0, 0, maskC.width, maskC.height, 0, 0, w, h);
+  try{ cx.filter = 'none'; }catch(e){}
   cx.globalCompositeOperation = 'source-over';
 
   // Strip the backdrop tint (white/cream halo) from the cut-out's edges.
