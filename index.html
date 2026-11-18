@@ -2257,6 +2257,22 @@
             </select>
           </div>
 
+          <h3 class="custom-section-label">Spacing</h3>
+          <div class="form-row">
+            <label for="b2bPairGap">Pair gap</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="range" id="b2bPairGap" min="0" max="3" step="0.05" value="1" style="flex:1;">
+              <span id="b2bPairGapVal" style="font-size:11px;color:var(--muted);min-width:46px;text-align:right;">1.00 in</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="b2bCardGap">Card spacing</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="range" id="b2bCardGap" min="0" max="1" step="0.05" value="0" style="flex:1;">
+              <span id="b2bCardGapVal" style="font-size:11px;color:var(--muted);min-width:46px;text-align:right;">0.00 in</span>
+            </div>
+          </div>
+
           <h3 class="custom-section-label">Paper / canvas</h3>
           <div class="form-row">
             <label for="b2bCanvasSize" data-i18n="b2bCanvasSizeLabel">Canvas size</label>
@@ -4443,8 +4459,11 @@ let b2bFront = null, b2bBack = null;
 // Several different ID cards can share one sheet. Each entry is one card.
 let b2bCards = [];   // [{front, back, frontURL, backURL}]
 // Gap between the two sides, in inches, per pair layout.
-const B2B_GAP_SIDE  = 1;   // side by side
-const B2B_GAP_STACK = 2;   // top & bottom
+const B2B_GAP_SIDE  = 1;   // default for side by side
+const B2B_GAP_STACK = 2;   // default for top & bottom (fold)
+// Live spacing, controlled by the sliders.
+let b2bPairGapIn = B2B_GAP_SIDE;   // gap between the front and back of a card
+let b2bCardGapIn = 0;              // gap between one card and the next
 // Image fit inside the card frame: zoom (1 = cover-fit) and pan (fraction of the
 // card, -0.5..0.5), kept separate for the front and back so each can be framed.
 let b2bFrontZoom = 1, b2bFrontPanX = 0, b2bFrontPanY = 0;
@@ -4667,7 +4686,7 @@ function buildB2BActiveSet(){
   const qty = deck.length * copies;
   const canvas = b2bCanvasDims();
 
-  const gap = style === 'stack' ? B2B_GAP_STACK : B2B_GAP_SIDE;
+  const gap = b2bPairGapIn;
   const blockW = style === 'stack' ? cardW : (cardW * 2 + gap);
   const blockH = style === 'stack' ? (cardH * 2 + gap) : cardH;
   const margin = 0.25;
@@ -4723,6 +4742,7 @@ function buildB2BActiveSet(){
       cols: cols, rows: rows,
       x: posX, y: posY,
       limit: qty,
+      gapY: b2bCardGapIn,
       b2b: { cardW, cardH, style, gap, deck, copies,
              flip: !!(b2bFlipBack && b2bFlipBack.value === '1') }
     }]
@@ -4927,6 +4947,30 @@ if(b2bApplyBtn) b2bApplyBtn.addEventListener('click', buildB2BActiveSet);
     if(activeSet && activeSet.id === 'b2b') buildB2BActiveSet();
   });
 });
+
+// Spacing sliders: pair gap (front↔back) and card spacing (card↔card).
+(function(){
+  const pairGap = document.getElementById('b2bPairGap');
+  const cardGap = document.getElementById('b2bCardGap');
+  const pairVal = document.getElementById('b2bPairGapVal');
+  const cardVal = document.getElementById('b2bCardGapVal');
+  function readPair(){
+    b2bPairGapIn = pairGap ? (parseFloat(pairGap.value) || 0) : B2B_GAP_SIDE;
+    if(pairVal) pairVal.textContent = b2bPairGapIn.toFixed(2) + ' in';
+  }
+  function readCard(){
+    b2bCardGapIn = cardGap ? (parseFloat(cardGap.value) || 0) : 0;
+    if(cardVal) cardVal.textContent = b2bCardGapIn.toFixed(2) + ' in';
+  }
+  function rebuild(){ if(activeSet && activeSet.id === 'b2b') buildB2BActiveSet(); }
+  if(pairGap) pairGap.addEventListener('input', ()=>{ readPair(); rebuild(); });
+  if(cardGap) cardGap.addEventListener('input', ()=>{ readCard(); rebuild(); });
+  // Snap the pair gap to the layout's sensible default when the pair layout changes.
+  if(b2bStyle) b2bStyle.addEventListener('change', ()=>{
+    if(pairGap){ pairGap.value = b2bStyle.value === 'stack' ? B2B_GAP_STACK : B2B_GAP_SIDE; readPair(); rebuild(); }
+  });
+  readPair(); readCard();
+})();
 
 // ===================== POLAROID =====================
 const polaroidForm    = document.getElementById('polaroidForm');
@@ -8313,7 +8357,7 @@ function drawSection(section, pageWpx){
   const photoWpx = Math.max(1, cellWpx - inset*2);
   const photoHpx = Math.max(1, cellHpx - inset*2);
   const pitchW = cellWpx + SHEET_GAP_IN * DPI;
-  const pitchH = cellHpx + SHEET_GAP_IN * DPI;
+  const pitchH = cellHpx + ((section.gapY != null ? section.gapY : SHEET_GAP_IN) * DPI);
 
   let count = 0;
   for(let r=0;r<section.rows;r++){
