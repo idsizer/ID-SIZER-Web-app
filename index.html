@@ -1164,6 +1164,10 @@
     background:var(--card);
     border-color:var(--line-strong);
   }
+  /* keep the erase card a touch more compact (same width, a little shorter) */
+  .group-erase .erase-row{ margin-top:6px; }
+  .group-erase .tool-icon-btn{ width:36px; height:36px; }
+  .group-erase .group-note{ margin-top:3px; }
   /* icon-only tool buttons — erase = red, restore = green, so the two
      tools are told apart by colour and shape rather than by a label */
   .tool-icon-btn{
@@ -2556,15 +2560,6 @@
             </div>
           </div>
 
-          <div class="group" id="peopleGroup">
-            <h3 class="group-title">
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><circle cx="8" cy="5" r="3"/><path d="M2.5 14.2a5.5 5.5 0 0 1 11 0"/></svg>
-              <span>Saved photos</span>
-            </h3>
-            <div id="savedPeopleGallery" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;"></div>
-            <p class="group-note" id="savedPeopleEmpty" style="margin-top:8px;">No saved photos yet.</p>
-          </div>
-
           <div class="group group-erase" id="eraseGroup">
             <h3 class="group-title">
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.4 2.2 13.8 6.6 7.6 12.8H3.2l-.9-.9z"/><path d="M6.3 5.3 10.7 9.7"/><path d="M7.6 12.8h6.2"/></svg>
@@ -2598,6 +2593,15 @@
               <input type="range" id="brushSize" min="4" max="140" value="30">
               <div class="bg-tune-scale"><span>fine</span><span>broad</span></div>
             </div>
+          </div>
+
+          <div class="group" id="peopleGroup">
+            <h3 class="group-title">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><circle cx="8" cy="5" r="3"/><path d="M2.5 14.2a5.5 5.5 0 0 1 11 0"/></svg>
+              <span>Saved photos</span>
+            </h3>
+            <div id="savedPeopleGallery" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;"></div>
+            <p class="group-note" id="savedPeopleEmpty" style="margin-top:8px;">No saved photos yet.</p>
           </div>
 
           <div class="group">
@@ -6334,6 +6338,51 @@ function keepMainSubjectSized(alpha, W, H){
   return keep;
 }
 
+// Fill background "holes" that sit INSIDE the subject — e.g. dark tuxedo panels
+// the model misread as background. A region only counts as a hole if it cannot
+// be reached from the image border, so real gaps (between arms, etc.) stay open.
+// Holes larger than a cap are left alone so big enclosed gaps are not filled.
+function fillHolesInAlpha(alpha, W, H){
+  const N = W * H;
+  const solid = new Uint8Array(N);
+  for(let i = 0; i < N; i++) solid[i] = alpha[i] > 0.5 ? 1 : 0;
+
+  const reachable = new Uint8Array(N);
+  const stack = new Int32Array(N);
+  let sp = 0;
+  const push = (i) => { if(!solid[i] && !reachable[i]){ reachable[i] = 1; stack[sp++] = i; } };
+  for(let x = 0; x < W; x++){ push(x); push((H-1)*W + x); }
+  for(let y = 0; y < H; y++){ push(y*W); push(y*W + W - 1); }
+  while(sp > 0){
+    const p = stack[--sp];
+    const x = p % W;
+    if(x > 0) push(p - 1);
+    if(x < W - 1) push(p + 1);
+    if(p >= W) push(p - W);
+    if(p < N - W) push(p + W);
+  }
+
+  const maxHole = Math.round(N * 0.08);   // fill enclosed holes up to 8% of the frame
+  const seen = new Uint8Array(N);
+  for(let start = 0; start < N; start++){
+    if(solid[start] || reachable[start] || seen[start]) continue;
+    let hsp = 0; stack[hsp++] = start; seen[start] = 1;
+    const comp = [];
+    while(hsp > 0){
+      const p = stack[--hsp]; comp.push(p);
+      const x = p % W;
+      const add = (q) => { if(!solid[q] && !reachable[q] && !seen[q]){ seen[q] = 1; stack[hsp++] = q; } };
+      if(x > 0) add(p - 1);
+      if(x < W - 1) add(p + 1);
+      if(p >= W) add(p - W);
+      if(p < N - W) add(p + W);
+    }
+    if(comp.length <= maxHole){
+      for(let k = 0; k < comp.length; k++) alpha[comp[k]] = 1;
+    }
+  }
+}
+
 // ---- edge refinement ----
 // The mask comes out of the model at 1024x1024 and then has to be stretched
 // over a photo that is often much larger, which turns hair into a soft smear.
@@ -6441,6 +6490,12 @@ function maskToCanvas(data){
     alpha[i] = a <= 0 ? 0 : (a >= 1 ? 1 : a);
   }
   const keep = keepMainSubject(alpha);
+  const fin = new Float32Array(N);
+  for(let i = 0; i < N; i++){
+    const a = keep ? alpha[i] * keep[i] : alpha[i];
+    fin[i] = a < 0 ? 0 : a > 1 ? 1 : a;
+  }
+  fillHolesInAlpha(fin, SEG_SIZE, SEG_SIZE);
 
   const c = document.createElement('canvas');
   c.width = SEG_SIZE; c.height = SEG_SIZE;
@@ -6449,9 +6504,8 @@ function maskToCanvas(data){
   for(let i = 0; i < N; i++){
     // Keep the base mask soft (no hardenAlpha here) so fine hair survives
     // into the guided filter; the final pass in refinedMaskCanvas hardens it.
-    const a = keep ? alpha[i] * keep[i] : alpha[i];
     im.data[i*4] = im.data[i*4+1] = im.data[i*4+2] = 255;
-    im.data[i*4+3] = Math.round((a < 0 ? 0 : a > 1 ? 1 : a) * 255);
+    im.data[i*4+3] = Math.round(fin[i] * 255);
   }
   cx.putImageData(im, 0, 0);
   return c;
@@ -6656,13 +6710,18 @@ function refinedMaskCanvas(sourceImg, w, h){
   }
 
   const keep = keepMainSubjectSized(out, gw, gh);
+  const fin = new Float32Array(n);
+  for(let i = 0; i < n; i++){
+    const a = keep ? out[i] * keep[i] : out[i];
+    fin[i] = hardenAlpha(a);
+  }
+  fillHolesInAlpha(fin, gw, gh);
   const rc = document.createElement('canvas'); rc.width = gw; rc.height = gh;
   const rx = rc.getContext('2d');
   const im = rx.createImageData(gw, gh);
   for(let i = 0; i < n; i++){
-    const a = keep ? out[i] * keep[i] : out[i];
     im.data[i*4] = im.data[i*4+1] = im.data[i*4+2] = 255;
-    im.data[i*4+3] = Math.round(hardenAlpha(a) * 255);
+    im.data[i*4+3] = Math.round(fin[i] * 255);
   }
   rx.putImageData(im, 0, 0);
   return rc;
