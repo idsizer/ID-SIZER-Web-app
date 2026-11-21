@@ -704,6 +704,14 @@
   .saved-set-card .set-tag{ background:#0f7a4a; }
   .saved-set-delete{ position:absolute; top:8px; right:8px; width:20px; height:20px; border:none; border-radius:50%; background:rgba(0,0,0,.12); color:var(--muted); cursor:pointer; font-size:11px; line-height:18px; }
   .saved-set-delete:hover{ background:var(--danger); color:#fff; }
+  /* Saved custom layouts live in the top SET bar, after the built-in cards. */
+  .set-bar-saved{ display:contents; }
+  .set-bar .saved-bar-card{ border-color:#0f7a4a; }
+  .set-bar .saved-bar-card .set-tag{ background:#0f7a4a; color:#fff; }
+  .set-bar .saved-bar-card.active{ border-color:#0f7a4a; background:#e8f6ee; }
+  .saved-bar-name{ font-weight:600; font-size:12.5px; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .saved-bar-del{ border:0; background:transparent; color:var(--muted); font-size:14px; line-height:1; padding:2px 0 2px 4px; cursor:pointer; border-radius:4px; }
+  .saved-bar-del:hover{ color:#c8202b; }
 
   .custom-actions{
     display:flex;
@@ -4121,6 +4129,13 @@ function idplSetDefaultSet(id){ try{ if(id) localStorage.setItem(DEFAULT_SET_KEY
   setListEl.appendChild(setsCard);
   setListEl.appendChild(subList);
   others.forEach(l => setListEl.appendChild(l));
+  // Saved custom layouts go here, at the far right of the bar. renderSavedLayouts
+  // fills it so a newly saved layout shows up beside the SET cards straight away.
+  const savedBar = document.createElement('div');
+  savedBar.className = 'set-bar-saved';
+  savedBar.id = 'setBarSavedLayouts';
+  savedBar.style.display = 'none';
+  setListEl.appendChild(savedBar);
   renderDefaultStars();
 })();
 
@@ -5537,10 +5552,34 @@ function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// Load a saved layout into the custom form. Shared by the "My saved layouts"
+// cards and the chips in the top SET bar so both behave identically.
+function applySavedLayout(layout){
+  document.querySelectorAll('.set-card').forEach(c=>c.classList.remove('active'));
+  document.querySelectorAll('.saved-layout-card').forEach(c=>c.classList.remove('active'));
+  document.querySelectorAll('.saved-bar-card').forEach(c=>c.classList.remove('active'));
+  customForm.classList.add('show');
+  applySerializedForm(layout);
+  buildCustomActiveSet(); // this clears any arrangement, so restore after
+  restoreArrangementFrom(layout);
+  if(natW && img) renderPage();
+}
+
+function deleteSavedLayoutAt(idx){
+  const updated = loadSavedLayouts().filter((_, i) => i !== idx);
+  persistSavedLayouts(updated);
+  renderSavedLayouts();
+}
+
 function renderSavedLayouts(){
   const layouts = loadSavedLayouts();
   savedLayoutsSection.style.display = layouts.length ? 'block' : 'none';
   savedLayoutsList.innerHTML = '';
+
+  // Same layouts, mirrored into the top SET bar after the built-in cards.
+  const bar = document.getElementById('setBarSavedLayouts');
+  if(bar){ bar.innerHTML = ''; bar.style.display = layouts.length ? '' : 'none'; }
+
   layouts.forEach((layout, idx) => {
     const card = document.createElement('div');
     card.className = 'saved-layout-card';
@@ -5557,21 +5596,32 @@ function renderSavedLayouts(){
     `;
     card.addEventListener('click', (e)=>{
       if(e.target.closest('.saved-layout-delete')) return;
-      document.querySelectorAll('.saved-layout-card').forEach(c=>c.classList.remove('active'));
+      applySavedLayout(layout);
       card.classList.add('active');
-      document.querySelectorAll('.set-card').forEach(c=>c.classList.remove('active'));
-      customForm.classList.add('show');
-      applySerializedForm(layout);
-      buildCustomActiveSet(); // this clears any arrangement, so restore after
-      restoreArrangementFrom(layout);
-      if(natW && img) renderPage();
     });
     card.querySelector('.saved-layout-delete').addEventListener('click', ()=>{
-      const updated = loadSavedLayouts().filter((_, i) => i !== idx);
-      persistSavedLayouts(updated);
-      renderSavedLayouts();
+      deleteSavedLayoutAt(idx);
     });
     savedLayoutsList.appendChild(card);
+
+    if(bar){
+      const chip = document.createElement('div');
+      chip.className = 'set-card saved-bar-card';
+      chip.title = 'Load saved layout: ' + layout.name;
+      chip.innerHTML = '<span class="set-tag">SAVED</span>'
+        + '<span class="saved-bar-name">'+escapeHtml(layout.name)+'</span>'
+        + '<button type="button" class="saved-bar-del" title="Delete this saved layout">&#10005;</button>';
+      chip.addEventListener('click', (e)=>{
+        if(e.target.closest('.saved-bar-del')) return;
+        applySavedLayout(layout);
+        chip.classList.add('active');
+      });
+      chip.querySelector('.saved-bar-del').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        deleteSavedLayoutAt(idx);
+      });
+      bar.appendChild(chip);
+    }
   });
 }
 
