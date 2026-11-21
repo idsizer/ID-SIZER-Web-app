@@ -704,11 +704,11 @@
   .saved-set-card .set-tag{ background:#0f7a4a; }
   .saved-set-delete{ position:absolute; top:8px; right:8px; width:20px; height:20px; border:none; border-radius:50%; background:rgba(0,0,0,.12); color:var(--muted); cursor:pointer; font-size:11px; line-height:18px; }
   .saved-set-delete:hover{ background:var(--danger); color:#fff; }
-  /* Saved custom layouts live in the top SET bar, after the built-in cards. */
-  .set-bar-saved{ display:contents; }
+  /* Saved custom layouts sit inside the SETS dropdown, right after SET 5. */
   .set-bar .saved-bar-card{ border-color:#0f7a4a; }
   .set-bar .saved-bar-card .set-tag{ background:#0f7a4a; color:#fff; }
   .set-bar .saved-bar-card.active{ border-color:#0f7a4a; background:#e8f6ee; }
+  .set-bar .set-sublist .set-card.saved-bar-card{ flex:0 0 auto; }
   .saved-bar-name{ font-weight:600; font-size:12.5px; max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .saved-bar-del{ border:0; background:transparent; color:var(--muted); font-size:14px; line-height:1; padding:2px 0 2px 4px; cursor:pointer; border-radius:4px; }
   .saved-bar-del:hover{ color:#c8202b; }
@@ -4069,7 +4069,7 @@ function idplSetDefaultSet(id){ try{ if(id) localStorage.setItem(DEFAULT_SET_KEY
   setsCard.className = 'set-card sets-parent';
   setsCard.innerHTML = '<span class="set-tag">SETS</span><div class="set-desc">Ready-made ID layouts &mdash; click one</div>';
   const subList = document.createElement('div');
-  subList.className = 'set-sublist'; subList.style.display='none';
+  subList.className = 'set-sublist'; subList.style.display='none'; subList.id = 'setSublist';
   setsCard.addEventListener('click', ()=>{ var open = subList.style.display==='none'; subList.style.display = open ? '' : 'none'; setsCard.classList.toggle('open', open); });
 
   const renderDefaultStars = ()=>{
@@ -4129,13 +4129,6 @@ function idplSetDefaultSet(id){ try{ if(id) localStorage.setItem(DEFAULT_SET_KEY
   setListEl.appendChild(setsCard);
   setListEl.appendChild(subList);
   others.forEach(l => setListEl.appendChild(l));
-  // Saved custom layouts go here, at the far right of the bar. renderSavedLayouts
-  // fills it so a newly saved layout shows up beside the SET cards straight away.
-  const savedBar = document.createElement('div');
-  savedBar.className = 'set-bar-saved';
-  savedBar.id = 'setBarSavedLayouts';
-  savedBar.style.display = 'none';
-  setListEl.appendChild(savedBar);
   renderDefaultStars();
 })();
 
@@ -5576,9 +5569,9 @@ function renderSavedLayouts(){
   savedLayoutsSection.style.display = layouts.length ? 'block' : 'none';
   savedLayoutsList.innerHTML = '';
 
-  // Same layouts, mirrored into the top SET bar after the built-in cards.
-  const bar = document.getElementById('setBarSavedLayouts');
-  if(bar){ bar.innerHTML = ''; bar.style.display = layouts.length ? '' : 'none'; }
+  // Same layouts, listed inside the SETS dropdown right after SET 5.
+  const bar = document.getElementById('setSublist');
+  if(bar) bar.querySelectorAll('.saved-bar-card').forEach(el => el.remove());
 
   layouts.forEach((layout, idx) => {
     const card = document.createElement('div');
@@ -5720,7 +5713,7 @@ saveLayoutBtn.addEventListener('click', async ()=>{
 });
 
 // "Save as a new layout" keeps this exact canvas (size, orientation, rows)
-// plus the hand arrangement, so picking it again from My saved layouts
+// plus the hand arrangement, so picking it again from SETS
 // rebuilds the sheet the way it was left. Saving the same name replaces the
 // earlier copy instead of piling up duplicates.
 const saveNewLayoutBtn = document.getElementById('saveNewLayoutBtn');
@@ -5736,7 +5729,11 @@ if(saveNewLayoutBtn) saveNewLayoutBtn.addEventListener('click', async ()=>{
     else layouts.push(data);
     persistSavedLayouts(layouts);
     renderSavedLayouts();
-    setEditBanner((at >= 0 ? 'Updated ' : 'Saved ') + '\u201c' + name + '\u201d below. Pick it under My saved layouts whenever you need it.');
+    // Open the SETS folder so the new card is visible right after SET 5.
+    const setsParent = document.querySelector('.sets-parent');
+    const sub = document.getElementById('setSublist');
+    if(setsParent && sub){ sub.style.display = ''; setsParent.classList.add('open'); }
+    setEditBanner((at >= 0 ? 'Updated ' : 'Saved ') + '\u201c' + name + '\u201d in SETS, right after SET 5.');
   }catch(err){ console.error('Save new layout failed:', err); }
 });
 
