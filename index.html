@@ -2215,6 +2215,10 @@
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2.8h7.4L13.2 5.6V13a.8.8 0 0 1-.8.8H3.6a.8.8 0 0 1-.8-.8V3.6a.8.8 0 0 1 .8-.8Z"/><path d="M5.4 2.8v3.4h4.2V2.8M5.4 13.8V9.6h5.2v4.2"/></svg>
             <span id="saveLayoutLabel">Save this layout for later</span>
           </button>
+          <button class="btn-secondary" id="saveNewLayoutBtn" title="Keeps this canvas and the exact hand arrangement in My saved layouts">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2.8h7.4L13.2 5.6V13a.8.8 0 0 1-.8.8H3.6a.8.8 0 0 1-.8-.8V3.6a.8.8 0 0 1 .8-.8Z"/><path d="M8 6.4v5.2M5.4 9h5.2"/></svg>
+            <span id="saveNewLayoutLabel">Save as a new layout</span>
+          </button>
         </div>
         <div class="custom-error" id="customError"></div>
 
@@ -4217,6 +4221,7 @@ function selectSet(id){
     applySerializedForm(override);
     try{ buildCustomActiveSet(); }catch(e){}
     if(activeSet){ activeSet.id = id; activeSet.tag = cfg.tag; }
+    restoreArrangementFrom(override);
     if(natW && activeSet){ setupCropBoxDims(); renderPage(); }
     else clearPreview();
     return;
@@ -4242,6 +4247,7 @@ const customCanvasSize = document.getElementById('customCanvasSize');
 const customCanvasDimsRow = document.getElementById('customCanvasDimsRow');
 const customCanvasW = document.getElementById('customCanvasW');
 const customCanvasH = document.getElementById('customCanvasH');
+const customLandscape = document.getElementById('customLandscape');
 const customApplyBtn = document.getElementById('customApplyBtn');
 const customError = document.getElementById('customError');
 let suppressCustomLive = false;   // pause live rebuilds while a form is being populated
@@ -5481,6 +5487,7 @@ function serializeCurrentForm(){
     canvasSize: customCanvasSize.value,
     canvasW: parseFloat(customCanvasW.value) || 5,
     canvasH: parseFloat(customCanvasH.value) || 7,
+    landscape: !!(customLandscape && customLandscape.checked),
     rows: rowEls.map(rowEl => ({
       sizeType: rowEl.querySelector('.row-photo-size').value,
       w: parseFloat(rowEl.querySelector('.row-photo-w').value) || 1,
@@ -5496,6 +5503,7 @@ function applySerializedForm(data){
   customCanvasDimsRow.style.display = (data.canvasSize === 'custom') ? 'grid' : 'none';
   customCanvasW.value = data.canvasW;
   customCanvasH.value = data.canvasH;
+  if(customLandscape) customLandscape.checked = !!data.landscape;
 
   customRowsContainer.innerHTML = '';
   data.rows.forEach(r => {
@@ -5511,6 +5519,20 @@ function applySerializedForm(data){
   suppressCustomLive = false;
 }
 
+// Put a saved hand arrangement back on the sheet exactly as it was left.
+// Positions are stored in inches, so the same canvas brings them back
+// unchanged. Safe to call with no arrangement (falls back to the auto grid).
+function restoreArrangementFrom(data){
+  arranged = (data && data.arrangement && data.arrangement.length)
+    ? data.arrangement.map(p => ({ ...p }))
+    : null;
+  selection.clear();
+  if(arrangeReset) arrangeReset.disabled = !arranged;
+  resetArrangeHistory();
+  if(arranged) pushArrangeHistory();
+  syncArrangeStatus();
+}
+
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -5522,7 +5544,7 @@ function renderSavedLayouts(){
   layouts.forEach((layout, idx) => {
     const card = document.createElement('div');
     card.className = 'saved-layout-card';
-    const sizesText = layout.rows.map(r => {
+    const sizesText = (Array.isArray(layout.rows) ? layout.rows : []).map(r => {
       const label = r.sizeType==='1x1'?'1x1':r.sizeType==='2x2'?'2x2':r.sizeType==='passport'?'Passport':`${r.w}\u00d7${r.h}in`;
       return `${label}\u00d7${r.qty}`;
     }).join(', ');
@@ -5541,15 +5563,8 @@ function renderSavedLayouts(){
       customForm.classList.add('show');
       applySerializedForm(layout);
       buildCustomActiveSet(); // this clears any arrangement, so restore after
-      if(layout.arrangement && layout.arrangement.length){
-        arranged = layout.arrangement.map(p => ({ ...p }));
-        selection.clear();
-        arrangeReset.disabled = false;
-        resetArrangeHistory();
-        pushArrangeHistory();
-        syncArrangeStatus();
-        if(natW && img) renderPage();
-      }
+      restoreArrangementFrom(layout);
+      if(natW && img) renderPage();
     });
     card.querySelector('.saved-layout-delete').addEventListener('click', ()=>{
       const updated = loadSavedLayouts().filter((_, i) => i !== idx);
@@ -5601,6 +5616,7 @@ function renderSavedSets(){
       applySerializedForm(s);
       enterDualMode();
       try{ buildCustomActiveSet(); }catch(_){}
+      restoreArrangementFrom(s);
       currentMode = 'preset';   // a saved set is editable & re-savable as a set
       updateSaveButtons();
       if(natW){ setupCropBoxDims(); renderPage(); }
@@ -5651,6 +5667,27 @@ saveLayoutBtn.addEventListener('click', async ()=>{
     currentSetId = targetId;
     updateSaveLayoutBtn();
   }catch(err){ console.error('Save layout failed:', err); }
+});
+
+// "Save as a new layout" keeps this exact canvas (size, orientation, rows)
+// plus the hand arrangement, so picking it again from My saved layouts
+// rebuilds the sheet the way it was left. Saving the same name replaces the
+// earlier copy instead of piling up duplicates.
+const saveNewLayoutBtn = document.getElementById('saveNewLayoutBtn');
+if(saveNewLayoutBtn) saveNewLayoutBtn.addEventListener('click', async ()=>{
+  try{
+    if(typeof idplRequireCode === 'function' && !idplRequireCode('Saving layouts')) return;
+    const name = await askForText('Name this layout:', 'My layout');
+    if(!name) return;
+    const data = Object.assign({ name, savedAt: Date.now() }, serializeCurrentForm());
+    const layouts = loadSavedLayouts();
+    const at = layouts.findIndex(l => String(l.name || '').trim().toLowerCase() === name.toLowerCase());
+    if(at >= 0) layouts[at] = data;
+    else layouts.push(data);
+    persistSavedLayouts(layouts);
+    renderSavedLayouts();
+    setEditBanner((at >= 0 ? 'Updated ' : 'Saved ') + '\u201c' + name + '\u201d below. Pick it under My saved layouts whenever you need it.');
+  }catch(err){ console.error('Save new layout failed:', err); }
 });
 
 function updateSaveLayoutBtn(){
