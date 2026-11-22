@@ -574,7 +574,7 @@
     padding:10px; margin-top:8px;
     border-left:1.5px solid var(--line-strong); padding-left:10px;
   }
-  .set-bar .set-sublist .set-card.set-sub{ flex:1 1 200px; padding-left:12px; }
+  .set-bar .set-sublist .set-card.set-sub{ flex:0 0 auto; padding-left:12px; }
   .set-sub-btn{
     border:none; background:none; cursor:pointer;
     font-size:13px; line-height:1; padding:2px 4px;
@@ -706,10 +706,7 @@
   .saved-set-card .set-tag{ background:#0f7a4a; }
   .saved-set-delete{ position:absolute; top:8px; right:8px; width:20px; height:20px; border:none; border-radius:50%; background:rgba(0,0,0,.12); color:var(--muted); cursor:pointer; font-size:11px; line-height:18px; }
   .saved-set-delete:hover{ background:var(--danger); color:#fff; }
-  /* Saved custom layouts sit inside the SETS dropdown, right after SET 5. */
-  .set-bar .saved-bar-card{ border-color:#0f7a4a; gap:6px; padding:6px 8px 6px 10px; }
-  .set-bar .saved-bar-card .set-tag{ background:#0f7a4a; color:#fff; border-radius:999px; padding:2px 9px; font-size:11.5px; letter-spacing:0; }
-  .set-bar .saved-bar-card.active{ border-color:#0f7a4a; background:#e8f6ee; }
+  /* Saved sets sit inside the SETS dropdown, sized like the built-in SETs. */
   .set-bar .set-sublist .set-card.saved-bar-card{ flex:0 0 auto; }
   .saved-bar-name{ font-weight:700; font-size:12.5px; white-space:nowrap; }
   .saved-bar-del{ border:0; background:transparent; color:var(--muted); font-size:14px; line-height:1; padding:2px 0 2px 4px; cursor:pointer; border-radius:4px; }
@@ -4153,6 +4150,26 @@ function presetToForm(cfg){
   applySerializedForm({ canvasSize:ct.t, canvasW:ct.w, canvasH:ct.h, rows });
 }
 function selectSet(id){
+  // Sets added from "Save as a new layout" live in the SETS folder and use a
+  // "saved:<name>" id. Open one exactly like the built-in SETs.
+  if(typeof id === 'string' && id.indexOf('saved:') === 0){
+    const saved = loadSavedLayouts().find(l => l.name === id.slice(6));
+    currentSetId = id;
+    if(typeof updateSaveLayoutBtn === 'function') updateSaveLayoutBtn();
+    multiActive = false;
+    document.querySelectorAll('.set-card').forEach(el=>{
+      el.classList.toggle('active', el.dataset.id === id);
+      var inp=el.querySelector('input'); if(inp) inp.checked = (el.dataset.id === id);
+    });
+    if(saved){
+      applySavedLayout(saved);
+      const chip = Array.from(document.querySelectorAll('.saved-bar-card')).find(c => c.dataset.id === id);
+      if(chip) chip.classList.add('active');
+    } else {
+      idplSetDefaultSet('');  // the set was deleted; forget it
+    }
+    return;
+  }
   const cfg = PRESET_SETS.find(s => s.id === id);
   currentSetId = id;   // track which SET slot is being viewed/edited
   if(typeof updateSaveLayoutBtn === 'function') updateSaveLayoutBtn();
@@ -5552,8 +5569,11 @@ function applySavedLayout(layout){
 }
 
 function deleteSavedLayoutAt(idx){
-  const updated = loadSavedLayouts().filter((_, i) => i !== idx);
+  const layouts = loadSavedLayouts();
+  const removed = layouts[idx];
+  const updated = layouts.filter((_, i) => i !== idx);
   persistSavedLayouts(updated);
+  if(removed && idplGetDefaultSet() === 'saved:' + removed.name) idplSetDefaultSet('');
   renderSavedLayouts();
 }
 
@@ -5571,22 +5591,32 @@ function renderSavedLayouts(){
   bar.querySelectorAll('.saved-bar-card').forEach(el => el.remove());
 
   layouts.forEach((layout, idx) => {
-    // Name only — no sizes or canvas text on the card.
+    // Name only — no sizes or canvas text on the card. Same star as SET 1–5.
     const chip = document.createElement('div');
     chip.className = 'set-card saved-bar-card';
+    chip.dataset.id = 'saved:' + layout.name;
     chip.title = 'Load saved layout: ' + layout.name;
     chip.innerHTML = '<span class="set-tag saved-bar-name">'+escapeHtml(layout.name)+'</span>'
+      + '<button type="button" class="set-sub-btn set-sub-default" title="Use this set as the default for received photos" data-act="default">&#9734;</button>'
       + '<button type="button" class="saved-bar-del" title="Delete this saved layout">&#10005;</button>';
     chip.addEventListener('click', (e)=>{
-      if(e.target.closest('.saved-bar-del')) return;
-      applySavedLayout(layout);
-      chip.classList.add('active');
+      if(e.target.closest('.saved-bar-del') || e.target.closest('.set-sub-btn')) return;
+      selectSet(chip.dataset.id);
     });
     chip.querySelector('.saved-bar-del').addEventListener('click', (e)=>{
       e.stopPropagation();
       deleteSavedLayoutAt(idx);
     });
     bar.appendChild(chip);
+  });
+
+  // Reflect the current default-set star, including a saved set picked earlier.
+  const def = idplGetDefaultSet();
+  bar.querySelectorAll('.set-sub-default').forEach(b => {
+    const c = b.closest('.set-card[data-id]');
+    const on = !!(c && def && c.dataset.id === def);
+    b.classList.toggle('on', on);
+    b.textContent = on ? '\u2605' : '\u2606';
   });
 }
 
