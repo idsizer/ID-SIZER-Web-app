@@ -4382,8 +4382,8 @@ function addFreeSlot(){
   if(live){
     arranged.push(slot);
     freeSlots.push({ x:slot.x, y:slot.y, w:slot.w, h:slot.h, rot:0 });
-    selection.clear(); selection.add(arranged.length - 1);
     if(!arrangeMode) setArrangeMode(true);
+    selection.clear(); selection.add(arranged.length - 1);
     pushArrangeHistory();
     syncArrangeStatus();
     if(natW && img) renderPage();
@@ -5488,6 +5488,9 @@ function buildCustomActiveSet(){
     }));
     selection.clear();
     if(!arrangeMode) setArrangeMode(true);
+    // Select the newest size so its rotate knob is visible right away.
+    if(arranged && arranged.length) selection.add(arranged.length - 1);
+    syncArrangeStatus();
     if(natW) renderPage();
     return true;
   }
