@@ -6129,9 +6129,12 @@ function applyLoadedImage(loaded, dataURL){
       // Adding another photo must not wipe what is already on the sheet.
       // Cells currently filled by "Tag all" follow the live photo, so pin them
       // to the OUTGOING image first; individually dropped cells already hold
-      // their own image and are left untouched.
+      // their own image and are left untouched. A saved layout with auto-place
+      // on is the exception: the new photo is meant to fill the sheet.
       try{
-        if(fillAllCells && img && photoSlots && photoSlots.length){
+        var autoPlacingInto = !!window.__idplAutoPlace &&
+          typeof currentSetId === 'string' && currentSetId.indexOf('saved:') === 0;
+        if(fillAllCells && img && photoSlots && photoSlots.length && !autoPlacingInto){
           const keep = img;
           photoSlots.forEach(function(sl){
             if(!slotPhotos.has(sl.i)) slotPhotos.set(sl.i, keep);
@@ -9962,12 +9965,27 @@ function placeReceivedIntoSheet(){
   try{
     if(typeof activeSet === 'undefined' || !activeSet) return 0;
     if(activeSet.id === 'multi' || activeSet.id === 'b2b') return 0;
-    if(typeof arrangeMode !== 'undefined' && (arrangeMode || arranged)) return 0;
+    // Saved layouts always keep their hand arrangement, so the old guard used
+    // to skip them completely. They are exactly the sets that benefit from
+    // auto-place, so let those through (and leave presets alone).
+    var savedLayoutActive = (typeof currentSetId === 'string' && currentSetId.indexOf('saved:') === 0);
+    if(!savedLayoutActive && typeof arrangeMode !== 'undefined' && (arrangeMode || arranged)) return 0;
     if(typeof photoSlots === 'undefined' || !photoSlots || !photoSlots.length) return 0;
     if(typeof slotPhotos === 'undefined' || typeof taggedSlots === 'undefined' || typeof fillAllCells === 'undefined') return 0;
 
     var toggle = document.getElementById('phoneAutoPlace');
     if(toggle && !toggle.checked) return 0;
+
+    // Arrange-mode sheets keep their name tags on the arranged photos, while
+    // grid sets read them from taggedSlots. Write both so a saved layout shows
+    // the name on the photo it was dropped into.
+    function tagPlacedSlot(i, nm){
+      if(nm) taggedSlots.set(i, nm); else taggedSlots.delete(i);
+      if(typeof arranged !== 'undefined' && arranged && arranged[i]){
+        arranged[i].tagged = !!nm;
+        arranged[i].tagName = nm || '';
+      }
+    }
 
     var people = (typeof savedPeople !== 'undefined') ? savedPeople : [];
     var pending = people.filter(function(p){ return p && p.img && !p.placedInSheet; });
@@ -9980,20 +9998,22 @@ function placeReceivedIntoSheet(){
 
     var placed = 0;
     if(pending.length === 1 && emptyIdx.length === photoSlots.length){
+      // One photo on a fresh sheet -> put it in every cell. Using the fill-all
+      // path means the cells also switch to the cut-out once background
+      // removal finishes.
       var pn = pending[0];
       fillAllCells = true;
       slotPhotos.clear();
-      if(pn.name){
-        for(var e = 0; e < photoSlots.length; e++) taggedSlots.set(photoSlots[e].i, pn.name);
-      }
+      for(var e = 0; e < photoSlots.length; e++) tagPlacedSlot(photoSlots[e].i, pn.name || '');
       pn.placedInSheet = true;
       placed = photoSlots.length;
     } else {
+      // Several photos -> one per cell; extras stay in Saved photos.
       fillAllCells = false;
       for(var k = 0; k < pending.length && k < emptyIdx.length; k++){
         var p = pending[k];
         slotPhotos.set(emptyIdx[k], p.img);
-        if(p.name) taggedSlots.set(emptyIdx[k], p.name);
+        tagPlacedSlot(emptyIdx[k], p.name || '');
         p.placedInSheet = true;
         placed++;
       }
