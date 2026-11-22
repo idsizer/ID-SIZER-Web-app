@@ -583,6 +583,7 @@
   .set-sub-btn:hover{ color:var(--accent-dark); background:var(--accent-tint); }
   .set-sub-default{ margin-left:auto; }
   .set-sub-default.on{ color:#e9a23b; }
+  #freeModeBtn.on{ border-color:var(--accent); color:var(--accent-dark); background:var(--accent-tint); }
 
   /* SET picker modal (Save this layout into a SET) */
   .set-picker-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
@@ -1315,6 +1316,7 @@
   #pageCanvas:focus{box-shadow:var(--shadow-2),var(--focus);}
   #pageCanvas.arranging{cursor:default;}
   #pageCanvas.arranging.over-photo{cursor:move;}
+  #pageCanvas.arranging.over-rotate{cursor:grab;}
   #pageCanvas.nametag-picking{cursor:pointer;}
   #pageCanvas.nametag-dropping{cursor:copy;}
 
@@ -2182,6 +2184,38 @@
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>
           Add another size
         </button>
+
+        <button type="button" class="btn-secondary btn-small" id="freeModeBtn" style="width:100%;margin-top:6px;" title="Place ID sizes anywhere on the sheet, without a grid">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5h6v6h-6zM7.5 7.5h6v6h-6z"/></svg>
+          <span id="freeModeLabel">Fully customized &mdash; place sizes anywhere</span>
+        </button>
+
+        <div id="freePanel" style="display:none;margin-top:8px;">
+          <h3 class="custom-section-label">Free size</h3>
+          <div class="form-row">
+            <label for="freeSizeSelect">ID size</label>
+            <select id="freeSizeSelect">
+              <option value="1x1">1 x 1 in</option>
+              <option value="2x2">2 x 2 in</option>
+              <option value="passport">Passport &mdash; 3.5 x 4.5 cm</option>
+              <option value="custom">Custom size</option>
+            </select>
+          </div>
+          <div class="form-row" id="freeSizeDimsRow" style="display:none;">
+            <label>Dimensions</label>
+            <div class="dim-pair">
+              <input type="number" id="freeSizeW" min="0.3" step="0.05" value="1" aria-label="Photo width in inches">
+              <span>in &times;</span>
+              <input type="number" id="freeSizeH" min="0.3" step="0.05" value="1" aria-label="Photo height in inches">
+              <span>in</span>
+            </div>
+          </div>
+          <button type="button" class="btn-secondary btn-small" id="freeAddBtn" style="width:100%;margin-top:2px;">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>
+            Add this size
+          </button>
+          <p class="hint" style="margin:6px 0 0;">Each size lands in free space. Drag it anywhere, then grab the round handle at its corner to rotate.</p>
+        </div>
 
         <h3 class="custom-section-label" style="margin-top:18px;" data-i18n="paperCanvas">Paper / canvas</h3>
         <div class="form-row">
@@ -4271,7 +4305,112 @@ const customCanvasH = document.getElementById('customCanvasH');
 const customLandscape = document.getElementById('customLandscape');
 const customApplyBtn = document.getElementById('customApplyBtn');
 const customError = document.getElementById('customError');
+const freeModeBtn = document.getElementById('freeModeBtn');
+const freeModeLabel = document.getElementById('freeModeLabel');
+const freePanel = document.getElementById('freePanel');
+const freeSizeSelect = document.getElementById('freeSizeSelect');
+const freeSizeDimsRow = document.getElementById('freeSizeDimsRow');
+const freeSizeW = document.getElementById('freeSizeW');
+const freeSizeH = document.getElementById('freeSizeH');
+const freeAddBtn = document.getElementById('freeAddBtn');
 let suppressCustomLive = false;   // pause live rebuilds while a form is being populated
+
+// "Fully customized" mode: sizes are placed by hand instead of being generated
+// in rows. freeSlots mirrors the sheet's arrangement in inches, so the same
+// positions and rotations come back after a save or a canvas change.
+let freeMode = false;
+let freeSlots = [];
+
+function updateFreeUI(){
+  if(freePanel) freePanel.style.display = freeMode ? 'block' : 'none';
+  if(customRowsContainer) customRowsContainer.style.display = freeMode ? 'none' : '';
+  if(addRowBtn) addRowBtn.style.display = freeMode ? 'none' : '';
+  if(freeModeBtn) freeModeBtn.classList.toggle('on', freeMode);
+  if(freeModeLabel) freeModeLabel.textContent = freeMode
+    ? 'Back to grid sizes'
+    : 'Fully customized \u2014 place sizes anywhere';
+  if(freeSizeDimsRow && freeSizeSelect) freeSizeDimsRow.style.display = (freeSizeSelect.value === 'custom') ? 'grid' : 'none';
+}
+
+function freeSizeDims(){
+  const v = freeSizeSelect ? freeSizeSelect.value : '1x1';
+  if(v === '1x1') return { w:1, h:1 };
+  if(v === '2x2') return { w:2, h:2 };
+  if(v === 'passport') return { w:PP_W, h:PP_H };
+  return { w:parseFloat(freeSizeW.value)||1, h:parseFloat(freeSizeH.value)||1 };
+}
+
+function syncFreeSlotsFromArranged(){
+  if(!freeMode || !arranged) return;
+  freeSlots = arranged.map(p => ({ x:p.x, y:p.y, w:p.w, h:p.h, rot:p.rot||0 }));
+}
+
+// First top-to-bottom, left-to-right gap big enough for this size.
+function findFreeSpotIn(w, h, canvas, slots){
+  const margin = 0.2, step = 0.05;
+  const maxX = canvas.w - w - 0.05, maxY = canvas.h - h - 0.05;
+  for(let y = margin; y <= maxY + 0.0001; y += step){
+    for(let x = margin; x <= maxX + 0.0001; x += step){
+      const clash = (slots || []).some(s =>
+        x < s.x + s.w - 0.001 && x + w > s.x + 0.001 &&
+        y < s.y + s.h - 0.001 && y + h > s.y + 0.001);
+      if(!clash) return { x:Math.round(x*100)/100, y:Math.round(y*100)/100 };
+    }
+  }
+  return null;
+}
+
+function addFreeSlot(){
+  const canvas = canvasDimsFromForm();
+  const d = freeSizeDims();
+  if(!(d.w > 0) || !(d.h > 0)) return;
+  if(d.w > canvas.w || d.h > canvas.h){
+    customError.textContent = `A ${d.w}\u00d7${d.h}in photo is bigger than the ${canvas.w}\u00d7${canvas.h}in canvas.`;
+    customError.classList.add('show');
+    return;
+  }
+  const live = (freeMode && activeSet && activeSet.id === 'custom' && arranged) ? arranged : null;
+  const existing = live ? live : freeSlots;
+  const spot = findFreeSpotIn(d.w, d.h, canvas, existing);
+  if(!spot){
+    customError.textContent = 'No free space left for that size — move something, remove a size, or use a bigger canvas.';
+    customError.classList.add('show');
+    return;
+  }
+  const slot = { x:spot.x, y:spot.y, w:d.w, h:d.h, rot:0, shape:(Math.abs(d.w-d.h) < 0.001 ? 'square' : 'rect'), tagged:false, tagName:'' };
+  customError.classList.remove('show');
+  if(live){
+    arranged.push(slot);
+    freeSlots.push({ x:slot.x, y:slot.y, w:slot.w, h:slot.h, rot:0 });
+    selection.clear(); selection.add(arranged.length - 1);
+    if(!arrangeMode) setArrangeMode(true);
+    pushArrangeHistory();
+    syncArrangeStatus();
+    if(natW && img) renderPage();
+  } else {
+    freeSlots.push({ x:slot.x, y:slot.y, w:slot.w, h:slot.h, rot:0 });
+    try{ buildCustomActiveSet(); }catch(e){}
+  }
+}
+
+if(freeModeBtn) freeModeBtn.addEventListener('click', ()=>{
+  freeMode = !freeMode;
+  updateFreeUI();
+  if(freeMode){
+    // Start from whatever is already on the sheet, so the hand layout can be
+    // tweaked rather than starting from a blank page.
+    if(!freeSlots.length){
+      const base = arranged || ((activeSet && activeSet.sections && activeSet.sections.length) ? photosFromSections() : null);
+      if(base) freeSlots = base.map(p => ({ x:p.x, y:p.y, w:p.w, h:p.h, rot:p.rot||0 }));
+    }
+    if(freeSlots.length){ try{ buildCustomActiveSet(); }catch(e){} }
+  } else if(activeSet && activeSet.id === 'custom'){
+    try{ buildCustomActiveSet(); }catch(e){}
+  }
+});
+if(freeSizeSelect) freeSizeSelect.addEventListener('change', updateFreeUI);
+if(freeAddBtn) freeAddBtn.addEventListener('click', addFreeSlot);
+
 
 const ROW_TEMPLATE = `
   <div class="row-header">
@@ -5319,6 +5458,40 @@ function buildCustomActiveSet(){
   const canvas = canvasDimsFromForm();
   const rowEls = Array.from(customRowsContainer.querySelectorAll('.custom-row'));
 
+  // Fully customized: the slots are placed by hand, not generated from rows.
+  if(freeMode){
+    const slots = (freeSlots || []).filter(s => s && s.w > 0 && s.h > 0);
+    if(!slots.length){
+      customError.textContent = 'Pick an ID size and press "Add this size" to start.';
+      customError.classList.add('show');
+      return false;
+    }
+    for(const s of slots){
+      if(s.w > canvas.w || s.h > canvas.h){
+        customError.textContent = `A ${s.w}\u00d7${s.h}in photo is bigger than the ${canvas.w}\u00d7${canvas.h}in canvas.`;
+        customError.classList.add('show');
+        return false;
+      }
+    }
+    resetTaggedSlots();
+    activeSet = {
+      id:'custom', tag:'FULLY CUSTOMIZED',
+      desc:'Free placement', pageW:canvas.w, pageH:canvas.h,
+      sections:[]
+    };
+    arranged = slots.map(s => ({
+      x: Math.min(Math.max(s.x || 0, 0), Math.max(0, canvas.w - s.w)),
+      y: Math.min(Math.max(s.y || 0, 0), Math.max(0, canvas.h - s.h)),
+      w: s.w, h: s.h, rot: s.rot || 0,
+      shape: (Math.abs(s.w - s.h) < 0.001 ? 'square' : 'rect'),
+      tagged: false, tagName: ''
+    }));
+    selection.clear();
+    if(!arrangeMode) setArrangeMode(true);
+    if(natW) renderPage();
+    return true;
+  }
+
   const topMargin = 0.35;
   const gap = SHEET_GAP_IN || 0;   // connected = sizes touch; spaced = a gap
   const bottomMargin = 0.25;
@@ -5496,6 +5669,7 @@ function persistSavedLayouts(list){
 }
 
 function serializeCurrentForm(){
+  if(freeMode) syncFreeSlotsFromArranged();
   const rowEls = Array.from(customRowsContainer.querySelectorAll('.custom-row'));
   return {
     // If the photos have been moved by hand, keep their exact positions so the
@@ -5507,6 +5681,8 @@ function serializeCurrentForm(){
     canvasW: parseFloat(customCanvasW.value) || 5,
     canvasH: parseFloat(customCanvasH.value) || 7,
     landscape: !!(customLandscape && customLandscape.checked),
+    freeMode: !!freeMode,
+    freeSlots: (freeSlots || []).map(s => ({ x:s.x, y:s.y, w:s.w, h:s.h, rot:s.rot||0 })),
     rows: rowEls.map(rowEl => ({
       sizeType: rowEl.querySelector('.row-photo-size').value,
       w: parseFloat(rowEl.querySelector('.row-photo-w').value) || 1,
@@ -5535,6 +5711,13 @@ function applySerializedForm(data){
     rowEl.querySelector('.row-qty').value = r.qty;
   });
   if(customRowsContainer.children.length === 0) addCustomRow();
+  freeMode = !!data.freeMode;
+  freeSlots = Array.isArray(data.freeSlots)
+    ? data.freeSlots.map(s => ({ x:s.x, y:s.y, w:s.w, h:s.h, rot:s.rot||0 }))
+    : (Array.isArray(data.arrangement)
+        ? data.arrangement.map(p => ({ x:p.x, y:p.y, w:p.w, h:p.h, rot:p.rot||0 }))
+        : []);
+  updateFreeUI();
   suppressCustomLive = false;
 }
 
@@ -5894,6 +6077,13 @@ function setupCropBoxDims(){
     // frame the part that actually shows inside the white border
     const ap = activeSet.sections[0].polaroid.ap;
     const aspect = ap.w / ap.h;
+    const maxDim = 280;
+    if(aspect >= 1){ newBOXW = maxDim; newBOXH = maxDim / aspect; }
+    else { newBOXH = maxDim; newBOXW = maxDim * aspect; }
+  } else if(typeof freeMode !== 'undefined' && freeMode && freeSlots && freeSlots.length){
+    // Fully customized: frame Box A to the first free size placed on the sheet.
+    const fs = freeSlots[0];
+    const aspect = fs.w / fs.h;
     const maxDim = 280;
     if(aspect >= 1){ newBOXW = maxDim; newBOXH = maxDim / aspect; }
     else { newBOXH = maxDim; newBOXW = maxDim * aspect; }
@@ -7792,7 +7982,14 @@ function slotAtClientPoint(clientX, clientY){
   if(!rect.width || !rect.height) return null;
   const x = (clientX - rect.left) * (pageCanvas.width / rect.width);
   const y = (clientY - rect.top) * (pageCanvas.height / rect.height);
-  return photoSlots.find(s => x >= s.dx && x <= s.dx + s.w && y >= s.dy && y <= s.dy + s.h) || null;
+  return photoSlots.find(s => {
+    if(!s.rot) return x >= s.dx && x <= s.dx + s.w && y >= s.dy && y <= s.dy + s.h;
+    const cx = s.dx + s.w/2, cy = s.dy + s.h/2;
+    let lx = x - cx, ly = y - cy;
+    const a = s.rot * Math.PI / 180, c = Math.cos(-a), sn = Math.sin(-a);
+    const rx = lx * c - ly * sn, ry = lx * sn + ly * c;
+    return Math.abs(rx) <= s.w/2 && Math.abs(ry) <= s.h/2;
+  }) || null;
 }
 
 function toggleSlotAt(clientX, clientY, forceOn){
@@ -8191,9 +8388,23 @@ function photoAtPoint(xIn, yIn){
   if(!arranged) return -1;
   for(let i = arranged.length - 1; i >= 0; i--){ // topmost first
     const p = arranged[i];
-    if(xIn >= p.x && xIn <= p.x + p.w && yIn >= p.y && yIn <= p.y + p.h) return i;
+    if(pointInPhotoIn(p, xIn, yIn)) return i;
   }
   return -1;
+}
+
+// Point-in-photo test that follows the photo's rotation.
+function pointInPhotoIn(p, x, y){
+  const cx = p.x + p.w/2, cy = p.y + p.h/2;
+  let lx = x - cx, ly = y - cy;
+  const a = (p.rot || 0) * Math.PI / 180;
+  if(a){
+    const c = Math.cos(-a), s = Math.sin(-a);
+    const rx = lx * c - ly * s;
+    const ry = lx * s + ly * c;
+    lx = rx; ly = ry;
+  }
+  return Math.abs(lx) <= p.w/2 && Math.abs(ly) <= p.h/2;
 }
 
 function canvasPointFromClient(clientX, clientY){
@@ -8252,6 +8463,22 @@ pageCanvas.addEventListener('mousedown', e => {
   e.preventDefault();
   pageCanvas.focus();
 
+  // The round knob at a selected photo's corner rotates instead of moving.
+  const rotIdx = rotHandleAtClient(e.clientX, e.clientY);
+  if(rotIdx >= 0){
+    const p = arranged[rotIdx];
+    selection.clear(); selection.add(rotIdx);
+    dragState = {
+      rotate: true, index: rotIdx, moved: false,
+      cx: p.x + p.w/2, cy: p.y + p.h/2,
+      lastAngle: Math.atan2(pt.y - (p.y + p.h/2), pt.x - (p.x + p.w/2)),
+      startRot: p.rot || 0
+    };
+    syncArrangeStatus();
+    renderPage();
+    return;
+  }
+
   const hit = photoAtPoint(pt.x, pt.y);
   const ctrl = e.ctrlKey || e.metaKey;
 
@@ -8286,6 +8513,26 @@ window.addEventListener('mousemove', e => {
   if(!dragState || !arranged) return;
   const pt = canvasPointFromClient(e.clientX, e.clientY);
   if(!pt) return;
+
+  // Rotating: follow the pointer around the photo's centre.
+  if(dragState.rotate){
+    const p = arranged[dragState.index];
+    if(!p){ dragState = null; return; }
+    const ang = Math.atan2(pt.y - dragState.cy, pt.x - dragState.cx);
+    let delta = (ang - dragState.lastAngle) * 180 / Math.PI;
+    if(delta > 180) delta -= 360;
+    if(delta < -180) delta += 360;
+    dragState.lastAngle = ang;
+    let deg = (dragState.startRot || 0) + delta;
+    if(e.shiftKey) deg = Math.round(deg / 15) * 15;   // Shift = snap to 15°
+    p.rot = Math.round((((deg % 360) + 360) % 360) * 10) / 10;
+    dragState.startRot = p.rot;
+    dragState.moved = true;
+    syncArrangeStatus();
+    renderPage();
+    return;
+  }
+
   let dx = pt.x - dragState.startX;
   let dy = pt.y - dragState.startY;
   if(!dragState.moved && Math.abs(dx) < 0.02 && Math.abs(dy) < 0.02) return;
@@ -8333,6 +8580,7 @@ pageCanvas.addEventListener('mousemove', e => {
   if(!arrangeMode || !arranged) return;
   const pt = canvasPointFromClient(e.clientX, e.clientY);
   pageCanvas.classList.toggle('over-photo', !!pt && photoAtPoint(pt.x, pt.y) >= 0);
+  pageCanvas.classList.toggle('over-rotate', rotHandleAtClient(e.clientX, e.clientY) >= 0);
 });
 
 // ---- keyboard ----
@@ -8427,34 +8675,81 @@ document.addEventListener('keydown', e => {
 function drawPlacedPhoto(p, index){
   const dx = p.x * DPI, dy = p.y * DPI;
   const w = p.w * DPI, h = p.h * DPI;
+  const rotDeg = p.rot || 0;
 
-  photoSlots.push({ i: index, dx, dy, w, h });
+  photoSlots.push({ i: index, dx, dy, w, h, rot: rotDeg });
+
+  ctx.save();
+  if(rotDeg){
+    // Rotate around the photo's centre, then draw in local coordinates.
+    ctx.translate(dx + w/2, dy + h/2);
+    ctx.rotate(rotDeg * Math.PI / 180);
+    ctx.translate(-w/2, -h/2);
+  } else {
+    ctx.translate(dx, dy);
+  }
+  const lx = 0, ly = 0;
 
   const override = slotPhotos.get(index);
   if(override){
-    drawCoverImage(override, dx, dy, w, h);
+    drawCoverImage(override, lx, ly, w, h);
   } else if(!fillAllCells){
-    drawEmptyCell(dx, dy, w, h);
+    drawEmptyCell(lx, ly, w, h);
   } else {
     ctx.filter = currentFilterCSS();
     if(lastBgColorApplied){
       ctx.fillStyle = lastBgColorApplied;
-      ctx.fillRect(dx, dy, w, h);
+      ctx.fillRect(lx, ly, w, h);
     }
     const sr = sourceRectForAspect(w / h);
-    ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, dx, dy, w, h);
+    ctx.drawImage(img, sr.sx, sr.sy, sr.sw, sr.sh, lx, ly, w, h);
     ctx.filter = 'none';
   }
 
-  if(p.tagged) drawNameTag(dx, dy, w, h, p.tagName);
+  if(p.tagged) drawNameTag(lx, ly, w, h, p.tagName);
 
   ctx.strokeStyle = '#bbbbbb';
   ctx.lineWidth = 1;
-  ctx.strokeRect(dx, dy, w, h);
+  ctx.strokeRect(lx, ly, w, h);
+  ctx.restore();
+}
+
+// Where the round rotate handle sits for a photo: just outside its top-right
+// corner, in canvas pixels, following the photo's rotation.
+const ROT_HANDLE_R_PX = 9;
+function rotHandlePoint(p){
+  const cx = (p.x + p.w/2) * DPI;
+  const cy = (p.y + p.h/2) * DPI;
+  const hw = p.w * DPI / 2, hh = p.h * DPI / 2;
+  const a = (p.rot || 0) * Math.PI / 180;
+  const ox = hw + 2, oy = -hh - 2;
+  return {
+    x: cx + ox * Math.cos(a) - oy * Math.sin(a),
+    y: cy + ox * Math.sin(a) + oy * Math.cos(a)
+  };
+}
+function rotHandleAtCanvasPoint(px, py){
+  if(!arranged) return -1;
+  for(const i of selection){
+    const p = arranged[i];
+    if(!p) continue;
+    const hpt = rotHandlePoint(p);
+    const d = Math.hypot(px - hpt.x, py - hpt.y);
+    if(d <= ROT_HANDLE_R_PX + 5) return i;
+  }
+  return -1;
+}
+function rotHandleAtClient(clientX, clientY){
+  const rect = pageCanvas.getBoundingClientRect();
+  if(!rect.width || !rect.height) return -1;
+  return rotHandleAtCanvasPoint(
+    (clientX - rect.left) * (pageCanvas.width / rect.width),
+    (clientY - rect.top) * (pageCanvas.height / rect.height)
+  );
 }
 
 function drawSelection(){
-  if(!arrangeMode || idplHideSelection) return;
+  if(!arrangeMode) return;
   ctx.save();
   ctx.strokeStyle = '#c8202b';
   ctx.lineWidth = 3;
@@ -8462,7 +8757,37 @@ function drawSelection(){
   for(const i of selection){
     const p = arranged[i];
     if(!p) continue;
-    ctx.strokeRect(p.x * DPI - 1.5, p.y * DPI - 1.5, p.w * DPI + 3, p.h * DPI + 3);
+    const dx = p.x * DPI, dy = p.y * DPI, w = p.w * DPI, h = p.h * DPI;
+    ctx.save();
+    if(p.rot){
+      ctx.translate(dx + w/2, dy + h/2);
+      ctx.rotate(p.rot * Math.PI / 180);
+      ctx.translate(-w/2, -h/2);
+    } else {
+      ctx.translate(dx, dy);
+    }
+    ctx.strokeRect(-1.5, -1.5, w + 3, h + 3);
+    ctx.restore();
+  }
+  ctx.setLineDash([]);
+  // Round rotate handle at the top-right corner of each selected photo.
+  for(const i of selection){
+    const p = arranged[i];
+    if(!p) continue;
+    const hpt = rotHandlePoint(p);
+    ctx.beginPath();
+    ctx.arc(hpt.x, hpt.y, ROT_HANDLE_R_PX, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.strokeStyle = '#c8202b';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // little curved arrow inside the knob
+    ctx.beginPath();
+    ctx.arc(hpt.x, hpt.y, ROT_HANDLE_R_PX - 4, -Math.PI * 0.15, Math.PI * 1.05);
+    ctx.strokeStyle = '#c8202b';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
   }
   ctx.restore();
 }
