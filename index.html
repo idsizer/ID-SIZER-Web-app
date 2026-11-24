@@ -2214,7 +2214,7 @@
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>
             Add this size
           </button>
-          <p class="hint" style="margin:6px 0 0;">Each size lands in free space. Drag it anywhere, then grab the round handle at its corner to rotate.</p>
+          <p class="hint" style="margin:6px 0 0;">Each size lands in free space. Drag it anywhere, then grab the round handle at its corner to rotate \u2014 it snaps to straight angles (hold Alt/Option to rotate freely).</p>
         </div>
 
         <h3 class="custom-section-label" style="margin-top:18px;" data-i18n="paperCanvas">Paper / canvas</h3>
@@ -2425,6 +2425,7 @@
           <label class="phone-toggle"><input type="checkbox" id="phoneAutoPlace" checked> Auto-place photos in the sheet</label>
           <label class="phone-toggle"><input type="checkbox" id="phoneAutoRemoveBg" checked> Auto-remove background</label>
           <label class="phone-toggle"><input type="checkbox" id="phoneAutoLayout"> Use assigned layout</label>
+          <label class="phone-toggle"><input type="checkbox" id="phoneHeadSpace" checked> Head space above</label>
         </div>
 
         <div id="dropzone">
@@ -6121,6 +6122,127 @@ function setupCropBoxDims(){
   if(dualMode && natW && !hasFrameBInit) setupFrameB();
 }
 
+// ---------- Automatic head space ----------
+// Passport / ID photos look right when the head sits a little below the top
+// edge instead of touching it. When a photo is dropped we read the picture
+// itself - the background is taken from the corners, and the first row that
+// contains something else marks the top of the head - then slide the photo so
+// that spot lands HEAD_SPACE_RATIO of the frame height from the top. The user
+// can still drag and zoom afterwards.
+var HEAD_SPACE_RATIO = 0.10;
+
+function idplHeadSpaceOn(){
+  try{
+    var el = document.getElementById('phoneHeadSpace');
+    if(el) return !!el.checked;
+  }catch(e){}
+  return true;
+}
+
+// Return the subject's top edge and head centre in the photo's own pixels, or
+// null when there is no clear subject (a flat colour card, for example).
+function estimateSubjectBox(image){
+  try{
+    var iw = image.naturalWidth || image.width;
+    var ih = image.naturalHeight || image.height;
+    if(!iw || !ih) return null;
+    var sc = Math.min(1, 120 / Math.max(iw, ih));
+    var w = Math.max(2, Math.round(iw * sc));
+    var h = Math.max(2, Math.round(ih * sc));
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var g = c.getContext('2d');
+    g.drawImage(image, 0, 0, w, h);
+    var data = g.getImageData(0, 0, w, h).data;
+
+    // Average the four corner patches -> the background colour.
+    var pw = Math.max(2, Math.round(w * 0.08));
+    var ph = Math.max(2, Math.round(h * 0.08));
+    var corners = [[0,0],[w-pw,0],[0,h-ph],[w-pw,h-ph]];
+    var br=0, bg=0, bb=0, ba=0, n=0;
+    for(var ci=0; ci<corners.length; ci++){
+      for(var yy=0; yy<ph; yy++){
+        for(var xx=0; xx<pw; xx++){
+          var p = ((corners[ci][1]+yy)*w + (corners[ci][0]+xx)) * 4;
+          br += data[p]; bg += data[p+1]; bb += data[p+2]; ba += data[p+3]; n++;
+        }
+      }
+    }
+    br/=n; bg/=n; bb/=n; ba/=n;
+    var transparentBg = ba < 128;
+    var TH2 = 46*46;
+
+    function isSubject(p){
+      var a = data[p+3];
+      if(transparentBg) return a > 40;
+      if(a < 40) return false;
+      var dr = data[p]-br, dg = data[p+1]-bg, db = data[p+2]-bb;
+      return (dr*dr + dg*dg + db*db) > TH2;
+    }
+
+    var minRow = Math.max(2, Math.round(w * 0.02));
+    var rows = new Uint16Array(h);
+    for(var y=0; y<h; y++){
+      var cnt = 0;
+      for(var x=0; x<w; x++){ if(isSubject((y*w+x)*4)) cnt++; }
+      rows[y] = cnt;
+    }
+    // The first row that starts a run of three, so a speck of noise can't win.
+    var top = -1;
+    for(var y2=0; y2<h-2; y2++){
+      if(rows[y2] >= minRow && rows[y2+1] >= minRow && rows[y2+2] >= minRow){ top = y2; break; }
+    }
+    if(top < 0) return null;
+    var bottom = h-1;
+    while(bottom > top && rows[bottom] < minRow) bottom--;
+
+    var minX = w, maxX = -1;
+    var headBottom = Math.min(bottom, top + Math.max(2, Math.round((bottom-top) * 0.35)));
+    var headSum = 0, headN = 0;
+    for(var y3=top; y3<=bottom; y3++){
+      for(var x3=0; x3<w; x3++){
+        if(isSubject((y3*w+x3)*4)){
+          if(x3 < minX) minX = x3;
+          if(x3 > maxX) maxX = x3;
+          if(y3 <= headBottom){ headSum += x3; headN++; }
+        }
+      }
+    }
+    if(maxX < 0) return null;
+    var headCx = headN ? headSum / headN : (minX + maxX) / 2;
+
+    return {
+      top: top / sc,
+      bottom: (bottom + 1) / sc,
+      cx: headCx / sc,
+      left: minX / sc,
+      right: (maxX + 1) / sc
+    };
+  }catch(e){ return null; }
+}
+
+// Slide a framing box so the head top sits HEAD_SPACE_RATIO below the frame
+// top and the head is centred. frame 'A' is the main box, 'B' the second one.
+function applyAutoHeadSpace(image, frame){
+  var box = estimateSubjectBox(image);
+  if(!box) return false;
+  if(frame === 'B'){
+    if(!dualMode || !hasFrameBInit) return false;
+    var sB = baseScaleB * frameB.zoom;
+    frameB.offY = HEAD_SPACE_RATIO * BOXBH - box.top * sB;
+    frameB.offX = BOXBW/2 - box.cx * sB;
+    clampB();
+    applyTransformB();
+    return true;
+  }
+  var s = currentScale();
+  offY = HEAD_SPACE_RATIO * BOXH - box.top * s;
+  offX = BOXW/2 - box.cx * s;
+  clampOffsets();
+  applyTransform();
+  return true;
+}
+
 // Put a already-decoded image into the editor. Used both by openFile() and by
 // clicking a photo in the Saved photos list.
 function applyLoadedImage(loaded, dataURL){
@@ -6167,19 +6289,31 @@ function applyLoadedImage(loaded, dataURL){
       cropBoxInner.style.filter = 'none';
       hasCropInitialized = false;
       setupCropBoxDims();
+      // Automatic head space: give the head a little air above it. Only on a
+      // fresh photo - the user can still drag / zoom it afterwards.
+      try{
+        if(idplHeadSpaceOn()){
+          applyAutoHeadSpace(loaded, 'A');
+          if(dualMode) applyAutoHeadSpace(loaded, 'B');
+        }
+      }catch(e){}
       cropStage.style.display = 'block';
       renderPage();
       history = [];
       historyIndex = -1;
       pushHistory();
       // Jump straight to the framing controls so the slider is right there.
+      // When the photo is being auto-placed, the sheet is what matters, so
+      // leave the view alone and let the placement scroll to it instead.
       try{
-        const fg = document.getElementById('frameGroup');
-        if(fg && typeof fg.scrollIntoView === 'function'){
-          setTimeout(()=>{
-            try{ fg.scrollIntoView({behavior:'smooth', block:'start'}); }
-            catch(e){ try{ fg.scrollIntoView(); }catch(e2){} }
-          }, 60);
+        if(!window.__idplAutoPlace){
+          const fg = document.getElementById('frameGroup');
+          if(fg && typeof fg.scrollIntoView === 'function'){
+            setTimeout(()=>{
+              try{ fg.scrollIntoView({behavior:'smooth', block:'start'}); }
+              catch(e){ try{ fg.scrollIntoView(); }catch(e2){} }
+            }, 60);
+          }
         }
       }catch(e){}
     }
@@ -6201,7 +6335,7 @@ function openFile(file){
         window.__idplAutoPlace = false;
         setTimeout(function(){
           if(doRemove){ try{ removeBackground(); }catch(e){} }
-          if(doPlace){ try{ if(typeof placeReceivedIntoSheet === 'function') placeReceivedIntoSheet(); }catch(e){} }
+          if(doPlace){ try{ if(typeof placeReceivedIntoSheet === 'function' && placeReceivedIntoSheet() > 0) scrollToPrintSheet(); }catch(e){} }
         }, 30);
       }
       // A brand-new photo replaces whatever was in "Frame the photo" and is not
@@ -6260,7 +6394,8 @@ function applyReceiveAutoOptions(){
     var cfg = {
       phoneAutoPlace:      { key:'idpl_phone_autoplace',    def:true  },
       phoneAutoRemoveBg:   { key:'idpl_phone_autoremove',   def:true  },
-      phoneAutoLayout:     { key:'idpl_phone_autolayout',   def:false }
+      phoneAutoLayout:     { key:'idpl_phone_autolayout',   def:false },
+      phoneHeadSpace:      { key:'idpl_phone_headspace',    def:true  }
     };
     Object.keys(cfg).forEach(function(id){
       var el = document.getElementById(id);
@@ -6296,7 +6431,7 @@ function openFiles(files){
     // Land every photo in Saved photos so the sheet can auto-fill, then place
     // them — the same as the receive-from-phone flow.
     imgs.forEach(f => stashPhoto(f));
-    setTimeout(function(){ try{ if(typeof placeReceivedIntoSheet === 'function') placeReceivedIntoSheet(); }catch(e){} }, 700);
+    setTimeout(function(){ try{ if(typeof placeReceivedIntoSheet === 'function' && placeReceivedIntoSheet() > 0) scrollToPrintSheet(); }catch(e){} }, 700);
   } else if(imgs.length > 1){
     imgs.slice(1).forEach(f => stashPhoto(f));
   }
@@ -8448,12 +8583,59 @@ function snapOffset(movedRects, staticRects, pageW, pageH){
   return { dx: bestX || 0, dy: bestY || 0 };
 }
 
+// The axis-aligned footprint of a photo, in inches. Rotating a photo turns it
+// inside this box, so snapping and clamping use the box — that is what lets a
+// sideways ID butt flush against the ID next to it.
+function photoFootprint(p){
+  if(!p.rot) return { x:p.x, y:p.y, w:p.w, h:p.h };
+  const a = p.rot * Math.PI / 180;
+  const c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
+  const w = p.w * c + p.h * s;
+  const h = p.w * s + p.h * c;
+  return { x: p.x + p.w/2 - w/2, y: p.y + p.h/2 - h/2, w, h };
+}
+
 function clampToSheet(list){
   const pw = activeSet.pageW, ph = activeSet.pageH;
   for(const p of list){
-    p.x = Math.min(Math.max(p.x, 0), Math.max(0, pw - p.w));
-    p.y = Math.min(Math.max(p.y, 0), Math.max(0, ph - p.h));
+    const b = photoFootprint(p);
+    let dx = 0, dy = 0;
+    if(b.w <= pw){
+      if(b.x < 0) dx = -b.x;
+      else if(b.x + b.w > pw) dx = pw - (b.x + b.w);
+    } else {
+      dx = (pw - b.w) / 2 - b.x;   // wider than the sheet: centre it
+    }
+    if(b.h <= ph){
+      if(b.y < 0) dy = -b.y;
+      else if(b.y + b.h > ph) dy = ph - (b.y + b.h);
+    } else {
+      dy = (ph - b.h) / 2 - b.y;
+    }
+    p.x += dx; p.y += dy;
   }
+}
+
+// Rotation snapping. By default the angle clicks to 15° steps, and if another
+// photo on the sheet is already at a slightly different angle (say 7°) the
+// knob locks onto that exact angle — so sideways IDs share one straight cut.
+// Difference is measured mod 180°, because a photo upside-down is the same cut.
+const ROT_SNAP_DEG = 15;
+const ROT_MATCH_DEG = 6;
+function snapRotationAngle(deg, self){
+  const norm = ((deg % 360) + 360) % 360;
+  let best = null;
+  for(const other of (arranged || [])){
+    if(other === self || !other.rot) continue;
+    const base = ((other.rot % 180) + 180) % 180;
+    for(let k = 0; k < 2; k++){
+      const cand = base + k * 180;
+      const d = Math.abs(((norm - cand + 540) % 360) - 180);
+      if(d <= ROT_MATCH_DEG && (!best || d < best.d)) best = { deg: cand, d };
+    }
+  }
+  if(best) return ((best.deg % 360) + 360) % 360;
+  return ((Math.round(norm / ROT_SNAP_DEG) * ROT_SNAP_DEG) % 360 + 360) % 360;
 }
 
 function selectedPhotos(){
@@ -8530,8 +8712,11 @@ window.addEventListener('mousemove', e => {
     if(delta < -180) delta += 360;
     dragState.lastAngle = ang;
     let deg = (dragState.startRot || 0) + delta;
-    if(e.shiftKey) deg = Math.round(deg / 15) * 15;   // Shift = snap to 15°
-    p.rot = Math.round((((deg % 360) + 360) % 360) * 10) / 10;
+    // Snapping is on by default: clean 15° steps, and it locks onto another
+    // ID's angle when close so rotated photos sit at exactly the same angle.
+    // Hold Alt/Option for free rotation.
+    deg = e.altKey ? Math.round(deg * 10) / 10 : snapRotationAngle(deg, p);
+    p.rot = ((deg % 360) + 360) % 360;
     dragState.startRot = p.rot;
     dragState.moved = true;
     syncArrangeStatus();
@@ -8559,7 +8744,7 @@ window.addEventListener('mousemove', e => {
   if(!e.altKey){
     const movedSet = new Set(dragState.origin.map(o => o.p));
     const statics = arranged.filter(p => !movedSet.has(p));
-    const snap = snapOffset([...movedSet], statics, activeSet.pageW, activeSet.pageH);
+    const snap = snapOffset([...movedSet].map(photoFootprint), statics.map(photoFootprint), activeSet.pageW, activeSet.pageH);
     if(snap.dx || snap.dy){
       for(const o of dragState.origin){ o.p.x += snap.dx; o.p.y += snap.dy; }
     }
@@ -8576,6 +8761,11 @@ window.addEventListener('mouseup', e => {
     selection.delete(dragState.hit); // ctrl+click an already-selected photo removes it
     syncArrangeStatus();
     renderPage();
+  }
+  // A rotated photo can grow past the sheet edge — bring it back inside.
+  if(dragState.rotate && dragState.moved){
+    const p = arranged[dragState.index];
+    if(p){ clampToSheet([p]); renderPage(); }
   }
   if(dragState.moved) pushArrangeHistory(); // one step per completed drag
   dragState = null;
@@ -9958,6 +10148,28 @@ function enterMultiMode(){
 // the photo from the phone to this page over the internet, paired by a short
 // code shown in the QR. No LAN, no account.
 
+// Smooth-scroll to the print-ready sheet after an automatic placement, so the
+// operator sees the result without hunting for it.
+function scrollToPrintSheet(){
+  try{
+    // On phones the sheet is a separate step, so bring that step forward first.
+    try{
+      if(window.SIZERWeb && typeof window.SIZERWeb.setStep === 'function') window.SIZERWeb.setStep(3);
+    }catch(e){}
+    var el = document.getElementById('previewWrap') || document.getElementById('pageCanvas');
+    var target = (el && el.closest && el.closest('.preview-panel')) || el;
+    if(!target) return;
+    // Leave room for the sticky top bar so the STEP 3 heading is not hidden.
+    var head = document.getElementById('topBars');
+    var gap = (head && head.offsetHeight ? head.offsetHeight : 0) + 14;
+    var top = (window.pageYOffset || document.documentElement.scrollTop || 0);
+    var y = target.getBoundingClientRect().top + top - gap;
+    if(y < 0) y = 0;
+    try{ window.scrollTo({top:y, behavior:'smooth'}); }
+    catch(e){ window.scrollTo(0, y); }
+  }catch(e){}
+}
+
 // Global helper: place the received photos into the sheet's empty cells, with
 // their names on the tags. Called from the editor's photo-load hook so it runs
 // only after the sheet has been laid out.
@@ -10097,7 +10309,7 @@ function placeReceivedIntoSheet(){
   var placeTimer = null;
   function schedulePlace(){
     if(placeTimer) clearTimeout(placeTimer);
-    placeTimer = setTimeout(function(){ try{ placeReceivedIntoSheet(); }catch(e){} }, 700);
+    placeTimer = setTimeout(function(){ try{ if(placeReceivedIntoSheet() > 0) scrollToPrintSheet(); }catch(e){} }, 700);
   }
 
   function ingest(photo){
