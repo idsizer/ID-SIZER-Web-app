@@ -6230,6 +6230,8 @@ function applyLoadedImage(loaded, dataURL){
 
 function openFile(file){
   if(!file || !file.type.startsWith('image/')) return;
+  var autoPending = !!(window.__idplAutoRemoveBg || window.__idplAutoPlace);
+  if(autoPending) beginAutoFlow();
   const reader = new FileReader();
   reader.onload = e => {
     const loaded = new Image();
@@ -6238,13 +6240,19 @@ function openFile(file){
       // Phase 5 — a photo sent from the phone is cleaned and placed automatically.
       if(window.__idplAutoRemoveBg || window.__idplAutoPlace){
         const doRemove = window.__idplAutoRemoveBg;
-        const doPlace  = window.__idplAutoPlace;
         window.__idplAutoRemoveBg = false;
         window.__idplAutoPlace = false;
         setTimeout(function(){
-          if(doRemove){ try{ removeBackground(); }catch(e){} }
-          if(doPlace){ try{ if(typeof placeReceivedIntoSheet === 'function' && placeReceivedIntoSheet() > 0) scrollToPrintSheet(); }catch(e){} }
+          var work = Promise.resolve();
+          if(doRemove){ try{ work = removeBackground(); }catch(e){} }
+          // The caller's placement timer waits on this, so the photo is only
+          // tagged onto the sheet once the cut-out is ready, and the scroll to
+          // the sheet happens right after that single placement.
+          var after = function(){ finishAutoFlow(); };
+          Promise.resolve(work).then(after, after);
         }, 30);
+      } else {
+        finishAutoFlow();
       }
       // A brand-new photo replaces whatever was in "Frame the photo" and is not
       // in Saved photos yet - it joins the list only when the user presses
@@ -6253,8 +6261,10 @@ function openFile(file){
       activePersonId = null;
       try{ if(typeof renderSavedPeople === 'function') renderSavedPeople(); }catch(e){}
     };
+    loaded.onerror = function(){ finishAutoFlow(); };
     loaded.src = e.target.result;
   };
+  reader.onerror = function(){ finishAutoFlow(); };
   reader.readAsDataURL(file);
 }
 
@@ -6360,7 +6370,9 @@ function openFiles(files){
     // Land every photo in Saved photos so the sheet can auto-fill, then place
     // them — the same as the receive-from-phone flow.
     imgs.forEach(f => stashPhoto(f));
-    setTimeout(function(){ try{ if(typeof placeReceivedIntoSheet === 'function' && placeReceivedIntoSheet() > 0) scrollToPrintSheet(); }catch(e){} }, 700);
+    setTimeout(function(){
+      whenReadyToPlace().then(placeAndShowSheet, placeAndShowSheet);
+    }, 700);
   } else if(imgs.length > 1){
     imgs.slice(1).forEach(f => stashPhoto(f));
   }
@@ -6369,14 +6381,17 @@ function openFiles(files){
 // Read a file and add it to Saved photos without touching the editor.
 function stashPhoto(file, name){
   try{
+    stashStarted();
     const reader = new FileReader();
     reader.onload = ev => {
       const im = new Image();
-      im.onload = () => { try{ addPersonEntry(ev.target.result, im, name); }catch(e){} };
+      im.onload = () => { try{ addPersonEntry(ev.target.result, im, name); }catch(e){} finally { stashSettled(); } };
+      im.onerror = function(){ stashSettled(); };
       im.src = ev.target.result;
     };
+    reader.onerror = function(){ stashSettled(); };
     reader.readAsDataURL(file);
-  }catch(e){}
+  }catch(e){ stashSettled(); }
 }
 
 // Without this, Electron/Chromium navigates the whole window to a file dropped
@@ -6942,7 +6957,63 @@ function maskToCanvas(data){
   return c;
 }
 
-async function removeBackground(){
+// One background removal at a time, plus a promise the automatic place flow can
+// wait on — the sheet should only scroll into view once the cleaned photo is
+// ready and has been placed.
+let bgRemovePromise = null;
+function removeBackground(){
+  if(bgRemovePromise) return bgRemovePromise;
+  bgRemovePromise = removeBackgroundNow().then(
+    function(v){ bgRemovePromise = null; return v; },
+    function(e){ bgRemovePromise = null; throw e; }
+  );
+  return bgRemovePromise;
+}
+function whenBackgroundReady(){
+  return bgRemovePromise || Promise.resolve();
+}
+
+// The automatic drop flow spans image decoding, background removal, placing and
+// scrolling. This marker lets the later "place the stashed photos" timer wait
+// for the whole flow instead of jumping in while the photo is still decoding.
+let autoFlowPromise = null;
+let autoFlowDone = null;
+function beginAutoFlow(){
+  if(autoFlowPromise) return;
+  autoFlowPromise = new Promise(function(resolve){ autoFlowDone = resolve; });
+}
+function finishAutoFlow(){
+  var done = autoFlowDone; autoFlowDone = null;
+  autoFlowPromise = null;
+  if(done) done();
+}
+function whenAutoFlowDone(){
+  if(autoFlowPromise) return autoFlowPromise;
+  return whenBackgroundReady();
+}
+
+// Photos put into Saved photos load asynchronously. Count the ones still
+// decoding so an automatic placement can wait for them and tag every photo in
+// one go, instead of placing only the first one that happens to be ready.
+let pendingStash = 0;
+let stashWaiters = [];
+function stashStarted(){ pendingStash++; }
+function stashSettled(){
+  pendingStash = Math.max(0, pendingStash - 1);
+  if(pendingStash === 0){
+    var w = stashWaiters; stashWaiters = [];
+    w.forEach(function(f){ try{ f(); }catch(e){} });
+  }
+}
+function whenStashesReady(){
+  if(pendingStash <= 0) return Promise.resolve();
+  return new Promise(function(resolve){ stashWaiters.push(resolve); });
+}
+function whenReadyToPlace(){
+  return Promise.all([whenAutoFlowDone(), whenStashesReady()]);
+}
+
+async function removeBackgroundNow(){
   if(!bgSourceImg || !natW) return;
   // Always segment the ORIGINAL photo, never a version we already cut out or
   // colour-filled — otherwise a second pass eats into the subject.
@@ -6974,7 +7045,7 @@ async function removeBackground(){
     bgSay('Cutting out the background…');
     segMaskData = first.data;
     segSourceImg = segSrc;   // remember the uncut photo for re-cutting
-    applyCutOut(true);
+    await applyCutOut(true);
   }catch(err){
     bgFail('Background removal failed: ' + (err && err.message ? err.message : err));
     removeBgBtn.disabled = false;
@@ -7049,7 +7120,7 @@ function decontaminateEdges(ctx, w, h, bg){
 // Rebuild the cut-out from the cached mask. Cheap enough to run live while
 // the cleanup slider is being dragged.
 function applyCutOut(firstTime){
-  if(!segMaskData || !segSourceImg) return;
+  if(!segMaskData || !segSourceImg) return Promise.resolve(false);
   const w = segSourceImg.naturalWidth || segSourceImg.width;
   const h = segSourceImg.naturalHeight || segSourceImg.height;
   const maskC = refinedMaskCanvas(segSourceImg, w, h);
@@ -7074,33 +7145,39 @@ function applyCutOut(firstTime){
 
   const url = c.toDataURL('image/png');
   const cut = new Image();
-  cut.onload = () => {
-    img = cut;
-    // The cut-out is now what a background colour gets painted BEHIND.
-    // Without this, "Apply background colour" would composite the colour
-    // under the original opaque photo and the old background would come back.
-    bgSourceImg = cut;
-    natW = cut.naturalWidth; natH = cut.naturalHeight;
-    // the chosen background colour is a separate layer, so it survives a re-cut
-    syncCropBoxBackground();
-    cropImg.src = url;
-    renderPage();
-    // erasures are kept and re-subtracted from the fresh cut-out
-    setEraseBase(cut);
-    if(eraseCount) refreshErased(false);
-    if(firstTime){
-      pushHistory();
-      bgTune.style.display = 'block';
-      bgProgress.style.display = 'block';
-      bgProgress.textContent = 'Background removed. Still seeing patches? Drag "Background cleanup" to the right.';
+  // Resolve once the cut-out is decoded and painted, so an automatic flow can
+  // wait for the cleaned photo before placing it on the sheet.
+  return new Promise(function(resolve){
+    cut.onload = () => {
+      img = cut;
+      // The cut-out is now what a background colour gets painted BEHIND.
+      // Without this, "Apply background colour" would composite the colour
+      // under the original opaque photo and the old background would come back.
+      bgSourceImg = cut;
+      natW = cut.naturalWidth; natH = cut.naturalHeight;
+      // the chosen background colour is a separate layer, so it survives a re-cut
+      syncCropBoxBackground();
+      cropImg.src = url;
+      renderPage();
+      // erasures are kept and re-subtracted from the fresh cut-out
+      setEraseBase(cut);
+      if(eraseCount) refreshErased(false);
+      if(firstTime){
+        pushHistory();
+        bgTune.style.display = 'block';
+        bgProgress.style.display = 'block';
+        bgProgress.textContent = 'Background removed. Still seeing patches? Drag "Background cleanup" to the right.';
+        removeBgBtn.disabled = false;
+      }
+      resolve(true);
+    };
+    cut.onerror = () => {
+      bgFail('The cut-out image could not be read back.');
       removeBgBtn.disabled = false;
-    }
-  };
-  cut.onerror = () => {
-    bgFail('The cut-out image could not be read back.');
-    removeBgBtn.disabled = false;
-  };
-  cut.src = url;
+      resolve(false);
+    };
+    cut.src = url;
+  });
 }
 
 // Build the final mask: model output -> curve -> despeckle -> guided refine
@@ -10077,6 +10154,13 @@ function enterMultiMode(){
 // the photo from the phone to this page over the internet, paired by a short
 // code shown in the QR. No LAN, no account.
 
+// Auto-place the received photo, then bring the finished sheet into view.
+function placeAndShowSheet(){
+  try{
+    if(typeof placeReceivedIntoSheet === 'function' && placeReceivedIntoSheet() > 0) scrollToPrintSheet();
+  }catch(e){}
+}
+
 // Smooth-scroll to the print-ready sheet after an automatic placement, so the
 // operator sees the result without hunting for it.
 function scrollToPrintSheet(){
@@ -10096,6 +10180,14 @@ function scrollToPrintSheet(){
     if(y < 0) y = 0;
     try{ window.scrollTo({top:y, behavior:'smooth'}); }
     catch(e){ window.scrollTo(0, y); }
+    // Chromium skips animated scrolling while the window is not visible. Check
+    // shortly after and jump straight there, so the sheet is always shown.
+    setTimeout(function(){
+      try{
+        var cur = window.pageYOffset || document.documentElement.scrollTop || 0;
+        if(Math.abs(cur - y) > 4) window.scrollTo(0, y);
+      }catch(e){}
+    }, 450);
   }catch(e){}
 }
 
@@ -10238,7 +10330,9 @@ function placeReceivedIntoSheet(){
   var placeTimer = null;
   function schedulePlace(){
     if(placeTimer) clearTimeout(placeTimer);
-    placeTimer = setTimeout(function(){ try{ if(placeReceivedIntoSheet() > 0) scrollToPrintSheet(); }catch(e){} }, 700);
+    placeTimer = setTimeout(function(){
+      whenReadyToPlace().then(placeAndShowSheet, placeAndShowSheet);
+    }, 700);
   }
 
   function ingest(photo){
