@@ -1054,6 +1054,33 @@
   .brush-canvas{position:absolute;inset:0;display:none;}
   .brush-canvas.on{display:block;}
 
+  /* ID framing guidelines: head-space line above, and the chin line that keeps
+     every head the same size. Toggled from the checkbox under the ID preview. */
+  .id-guides{position:absolute;inset:0;pointer-events:none;z-index:2;display:none;}
+  .crop-box-inner.id-guides-on .id-guides{display:block;}
+  .id-guide-band{
+    position:absolute;left:0;right:0;top:10%;height:70%;
+    background:rgba(37,99,235,.055);
+  }
+  .id-guide-line{position:absolute;left:0;right:0;border-top:1px dashed rgba(37,99,235,.75);}
+  .id-guide-head{top:10%;}
+  .id-guide-chin{top:80%;}
+  .id-guide-line span{
+    position:absolute;right:3px;top:-14px;
+    font-size:9px;line-height:1;font-weight:600;
+    color:#1d4ed8;background:rgba(255,255,255,.85);
+    padding:2px 4px;border-radius:3px;white-space:nowrap;
+  }
+  .id-guide-chin span{top:auto;bottom:-15px;}
+  html[data-theme="dark"] .id-guide-line span{background:rgba(15,23,42,.85);color:#93c5fd;}
+  html[data-theme="dark"] .id-guide-band{background:rgba(96,165,250,.08);}
+  .id-guides-toggle{
+    display:flex;align-items:center;gap:6px;
+    margin:8px 0 0;font-size:11.5px;color:var(--muted);
+    cursor:pointer;user-select:none;
+  }
+  .id-guides-toggle input{margin:0;width:auto;accent-color:var(--accent);}
+
   /* name-tag band drawn over the crop preview (geometry set by JS) */
   .nametag-band{
     position:absolute;
@@ -2425,7 +2452,6 @@
           <label class="phone-toggle"><input type="checkbox" id="phoneAutoPlace" checked> Auto-place photos in the sheet</label>
           <label class="phone-toggle"><input type="checkbox" id="phoneAutoRemoveBg" checked> Auto-remove background</label>
           <label class="phone-toggle"><input type="checkbox" id="phoneAutoLayout"> Use assigned layout</label>
-          <label class="phone-toggle"><input type="checkbox" id="phoneHeadSpace" checked> Head space above</label>
         </div>
 
         <div id="dropzone">
@@ -2541,6 +2567,11 @@
                   <div class="crop-box-inner" id="cropBoxInner">
                     <img id="cropImg" alt="">
                     <canvas id="brushCanvas" class="brush-canvas"></canvas>
+                    <div class="id-guides" aria-hidden="true">
+                      <div class="id-guide-band"></div>
+                      <div class="id-guide-line id-guide-head"><span>Head space</span></div>
+                      <div class="id-guide-line id-guide-chin"><span>Same head size</span></div>
+                    </div>
                     <div class="nametag-band" id="nameTagBand"><span id="nameTagBandText"></span></div>
                   </div>
                   <div class="crop-history-btns">
@@ -2549,6 +2580,7 @@
                   </div>
                   <button type="button" class="crop-corner-btn crop-remove-btn" id="removePhotoBtn" title="Remove photo">&#10005;</button>
                 </div>
+                <label class="id-guides-toggle"><input type="checkbox" id="idGuidesToggle" checked> Show ID guidelines</label>
                 <div class="zoom-row">
                   <span>Zoom</span>
                   <input type="range" id="zoomSlider" min="25" max="175" value="100">
@@ -2560,6 +2592,11 @@
                 <div class="crop-box-outer" id="cropBoxB" style="margin-top:12px;">
                   <div class="crop-box-inner" id="cropBoxInnerB">
                     <img id="cropImgB" alt="">
+                    <div class="id-guides" aria-hidden="true">
+                      <div class="id-guide-band"></div>
+                      <div class="id-guide-line id-guide-head"><span>Head space</span></div>
+                      <div class="id-guide-line id-guide-chin"><span>Same head size</span></div>
+                    </div>
                   </div>
                 </div>
                 <div class="zoom-row">
@@ -6122,127 +6159,6 @@ function setupCropBoxDims(){
   if(dualMode && natW && !hasFrameBInit) setupFrameB();
 }
 
-// ---------- Automatic head space ----------
-// Passport / ID photos look right when the head sits a little below the top
-// edge instead of touching it. When a photo is dropped we read the picture
-// itself - the background is taken from the corners, and the first row that
-// contains something else marks the top of the head - then slide the photo so
-// that spot lands HEAD_SPACE_RATIO of the frame height from the top. The user
-// can still drag and zoom afterwards.
-var HEAD_SPACE_RATIO = 0.10;
-
-function idplHeadSpaceOn(){
-  try{
-    var el = document.getElementById('phoneHeadSpace');
-    if(el) return !!el.checked;
-  }catch(e){}
-  return true;
-}
-
-// Return the subject's top edge and head centre in the photo's own pixels, or
-// null when there is no clear subject (a flat colour card, for example).
-function estimateSubjectBox(image){
-  try{
-    var iw = image.naturalWidth || image.width;
-    var ih = image.naturalHeight || image.height;
-    if(!iw || !ih) return null;
-    var sc = Math.min(1, 120 / Math.max(iw, ih));
-    var w = Math.max(2, Math.round(iw * sc));
-    var h = Math.max(2, Math.round(ih * sc));
-    var c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    var g = c.getContext('2d');
-    g.drawImage(image, 0, 0, w, h);
-    var data = g.getImageData(0, 0, w, h).data;
-
-    // Average the four corner patches -> the background colour.
-    var pw = Math.max(2, Math.round(w * 0.08));
-    var ph = Math.max(2, Math.round(h * 0.08));
-    var corners = [[0,0],[w-pw,0],[0,h-ph],[w-pw,h-ph]];
-    var br=0, bg=0, bb=0, ba=0, n=0;
-    for(var ci=0; ci<corners.length; ci++){
-      for(var yy=0; yy<ph; yy++){
-        for(var xx=0; xx<pw; xx++){
-          var p = ((corners[ci][1]+yy)*w + (corners[ci][0]+xx)) * 4;
-          br += data[p]; bg += data[p+1]; bb += data[p+2]; ba += data[p+3]; n++;
-        }
-      }
-    }
-    br/=n; bg/=n; bb/=n; ba/=n;
-    var transparentBg = ba < 128;
-    var TH2 = 46*46;
-
-    function isSubject(p){
-      var a = data[p+3];
-      if(transparentBg) return a > 40;
-      if(a < 40) return false;
-      var dr = data[p]-br, dg = data[p+1]-bg, db = data[p+2]-bb;
-      return (dr*dr + dg*dg + db*db) > TH2;
-    }
-
-    var minRow = Math.max(2, Math.round(w * 0.02));
-    var rows = new Uint16Array(h);
-    for(var y=0; y<h; y++){
-      var cnt = 0;
-      for(var x=0; x<w; x++){ if(isSubject((y*w+x)*4)) cnt++; }
-      rows[y] = cnt;
-    }
-    // The first row that starts a run of three, so a speck of noise can't win.
-    var top = -1;
-    for(var y2=0; y2<h-2; y2++){
-      if(rows[y2] >= minRow && rows[y2+1] >= minRow && rows[y2+2] >= minRow){ top = y2; break; }
-    }
-    if(top < 0) return null;
-    var bottom = h-1;
-    while(bottom > top && rows[bottom] < minRow) bottom--;
-
-    var minX = w, maxX = -1;
-    var headBottom = Math.min(bottom, top + Math.max(2, Math.round((bottom-top) * 0.35)));
-    var headSum = 0, headN = 0;
-    for(var y3=top; y3<=bottom; y3++){
-      for(var x3=0; x3<w; x3++){
-        if(isSubject((y3*w+x3)*4)){
-          if(x3 < minX) minX = x3;
-          if(x3 > maxX) maxX = x3;
-          if(y3 <= headBottom){ headSum += x3; headN++; }
-        }
-      }
-    }
-    if(maxX < 0) return null;
-    var headCx = headN ? headSum / headN : (minX + maxX) / 2;
-
-    return {
-      top: top / sc,
-      bottom: (bottom + 1) / sc,
-      cx: headCx / sc,
-      left: minX / sc,
-      right: (maxX + 1) / sc
-    };
-  }catch(e){ return null; }
-}
-
-// Slide a framing box so the head top sits HEAD_SPACE_RATIO below the frame
-// top and the head is centred. frame 'A' is the main box, 'B' the second one.
-function applyAutoHeadSpace(image, frame){
-  var box = estimateSubjectBox(image);
-  if(!box) return false;
-  if(frame === 'B'){
-    if(!dualMode || !hasFrameBInit) return false;
-    var sB = baseScaleB * frameB.zoom;
-    frameB.offY = HEAD_SPACE_RATIO * BOXBH - box.top * sB;
-    frameB.offX = BOXBW/2 - box.cx * sB;
-    clampB();
-    applyTransformB();
-    return true;
-  }
-  var s = currentScale();
-  offY = HEAD_SPACE_RATIO * BOXH - box.top * s;
-  offX = BOXW/2 - box.cx * s;
-  clampOffsets();
-  applyTransform();
-  return true;
-}
-
 // Put a already-decoded image into the editor. Used both by openFile() and by
 // clicking a photo in the Saved photos list.
 function applyLoadedImage(loaded, dataURL){
@@ -6289,14 +6205,6 @@ function applyLoadedImage(loaded, dataURL){
       cropBoxInner.style.filter = 'none';
       hasCropInitialized = false;
       setupCropBoxDims();
-      // Automatic head space: give the head a little air above it. Only on a
-      // fresh photo - the user can still drag / zoom it afterwards.
-      try{
-        if(idplHeadSpaceOn()){
-          applyAutoHeadSpace(loaded, 'A');
-          if(dualMode) applyAutoHeadSpace(loaded, 'B');
-        }
-      }catch(e){}
       cropStage.style.display = 'block';
       renderPage();
       history = [];
@@ -6394,8 +6302,7 @@ function applyReceiveAutoOptions(){
     var cfg = {
       phoneAutoPlace:      { key:'idpl_phone_autoplace',    def:true  },
       phoneAutoRemoveBg:   { key:'idpl_phone_autoremove',   def:true  },
-      phoneAutoLayout:     { key:'idpl_phone_autolayout',   def:false },
-      phoneHeadSpace:      { key:'idpl_phone_headspace',    def:true  }
+      phoneAutoLayout:     { key:'idpl_phone_autolayout',   def:false }
     };
     Object.keys(cfg).forEach(function(id){
       var el = document.getElementById(id);
@@ -6407,6 +6314,28 @@ function applyReceiveAutoOptions(){
       }catch(e){ el.checked = c.def; }
       el.addEventListener('change', function(){ try{ localStorage.setItem(c.key, el.checked ? '1' : '0'); }catch(e){} });
     });
+  }catch(e){}
+})();
+
+// ID guidelines toggle — dashed head-space and chin lines drawn over the ID
+// preview so every head keeps the same size. On by default, remembered.
+(function(){
+  try{
+    var el = document.getElementById('idGuidesToggle');
+    var inners = [document.getElementById('cropBoxInner'), document.getElementById('cropBoxInnerB')];
+    function paint(on){
+      inners.forEach(function(n){ if(n) n.classList.toggle('id-guides-on', !!on); });
+    }
+    var on = true;
+    try{ var v = localStorage.getItem('idpl_id_guides'); if(v !== null) on = (v === '1'); }catch(e){}
+    if(el){
+      el.checked = on;
+      el.addEventListener('change', function(){
+        try{ localStorage.setItem('idpl_id_guides', el.checked ? '1' : '0'); }catch(e){}
+        paint(el.checked);
+      });
+    }
+    paint(on);
   }catch(e){}
 })();
 
